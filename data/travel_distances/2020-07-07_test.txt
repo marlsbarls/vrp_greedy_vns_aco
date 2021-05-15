@@ -1,0 +1,1 @@
+{"task_4760d959-fb2c-4daf-a43a-371f44f21d90:stationary_charge_13:main": 1, "task_4760d959-fb2c-4daf-a43a-371f44f21d90:stationary_charge_9:main": 2, "task_4760d959-fb2c-4daf-a43a-371f44f21d90:stationary_charge_1170:main": 4, "task_4760d959-fb2c-4daf-a43a-371f44f21d90:stationary_charge_854:main": 3, "task_4760d959-fb2c-4daf-a43a-371f44f21d90:stationary_charge_7:main": 5}

@@ -1,0 +1,21 @@
+name: chargery
+channels:
+  - defaults
+  - https://conda.anaconda.org/conda-forge/
+  - conda-forge
+dependencies:
+  - python=3.8
+  - autopep8
+  - matplotlib
+  - pylint
+  - pandas
+  - geopandas
+  - xlrd
+  - openpyxl
+  - scikit-learn
+  - requests
+  - jupyter
+  - python-dotenv
+  - descartes
+prefix: C:\Users\ghdpe\Anaconda3\envs\chargery
+

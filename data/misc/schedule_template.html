@@ -1,0 +1,43 @@
+<html><head><title>Solution Tableau: Chargery</title><script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script> 
+    <script type="text/javascript"> 
+      google.charts.load("current", { packages:["timeline", "table"]}); 
+              google.charts.setOnLoadCallback(drawChart); 
+    
+                                google.charts.setOnLoadCallback(drawTable);
+    
+                                function drawChart() 
+                                { 
+                                    var container = document.getElementById('Schedule');
+                                    var chart = new google.visualization.Timeline(container); 
+                                    var dataTable = new google.visualization.DataTable(); 
+    
+                                    dataTable.addColumn({ type: 'string', id: 'Room' }); 
+                                dataTable.addColumn({ type: 'string', id: 'Name' }); 
+                                dataTable.addColumn({ type: 'string', id: 'style', role: 'style' }); 
+                                dataTable.addColumn({ type: 'date', id: 'Start' }); 
+                                dataTable.addColumn({ type: 'date', id: 'End' }); 
+                                dataTable.addRows([$content]);
+    chart.draw(dataTable);
+    }
+    function drawTable()
+    {
+    var dataTable = new google.visualization.DataTable();
+    dataTable.addColumn('string', 'Objective Value');
+    dataTable.addColumn('number', '# Drivers');
+    dataTable.addColumn('string', '# Idle time');
+    
+    dataTable.addRows([
+    [ $minimal_cost + ' EUR', $number_of_tours, $idle_time + ' Min']
+    ])
+    var table = new google.visualization.Table(document.getElementById('Kosten'));
+    table.draw(dataTable);
+    }
+    </script>
+    <style type="text/css">div.Schedule>div { overflow:hidden; } </style>
+    </head>
+    <body>
+    <div id = "Kosten" style="height: auto;"></div>
+    <div id = "Schedule" style="height: 2000px; overflow:hidden;"></div>
+    </body>
+    </html>
+    
