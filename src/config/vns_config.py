@@ -2,7 +2,8 @@ cost_per_hour = 9.5
 cost_per_minute = cost_per_hour / 60
 cost_per_driver = 400
 minutes_per_kilometer = 2
-capacity = 480
+# capacity = 480
+capacity = 48
 
 shaking = {
     "ICROSS": {

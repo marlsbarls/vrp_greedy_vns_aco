@@ -1,3 +1,4 @@
+from src.algorithm.greedy_final import GreedyAlgorithm
 import sys
 import os
 import numpy as np
@@ -47,11 +48,12 @@ for file in file_names:
 
     time = 0
 
+    greedy = GreedyAlgorithm(all_orders_df, travel_time_matrix, service_time_matrix, planning_df)
+    greedy.run_greedy()
+    
+    # order_sequence = create_order_sequence(travel_time_matrix, 0)
+
+
+
 
     
-    order_sequence = create_order_sequence(travel_time_matrix, 0)
-
-
-
-
-    time = 0
