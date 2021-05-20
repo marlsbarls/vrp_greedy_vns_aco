@@ -15,7 +15,7 @@ pd.set_option("display.max_colwidth", 10000)
 dir_name = os.path.dirname(os.path.realpath('__file__'))
 file_names = ["2020-07-07"]
 test_name = "dynamic_solution_retry"
-test_type = "dynamic"  # static or dynamic
+test_type = "static"  # static or dynamic
 # only relevant if testtype = static: validation or experimentation
 static_type = "experimentation"
 
@@ -47,6 +47,7 @@ for file in file_names:
 
     if (test_type == "static"):
         time = 480
+        # time = 0
         Path(os.path.join(dir_name, "experiments", "results",
                           file, test_name, "convergence")).mkdir(parents=True, exist_ok=True)
         Path(os.path.join(dir_name, "experiments", "results", file,

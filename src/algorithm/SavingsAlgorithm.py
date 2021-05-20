@@ -1,5 +1,5 @@
 import numpy as np
-from src.algorithm.improved_vns import create_planning_df
+from src.algorithm.improved_vns import create_planning_df, total_cost, get_travel_time_matrix
 import src.config.vns_config as cfg
 import src.config.preprocessing_config as config
 
@@ -154,6 +154,12 @@ class SavingsAlgorithm:
         Ini_tour = Sub_tour
         planning_df = create_planning_df(
             Ini_tour, self.all_orders_df, self.travel_time_matrix, self.service_time_matrix, readytime, duetime)
+
+        travel_time = get_travel_time_matrix(len(self.all_orders_df)-1, self.all_orders_df['XCOORD'], self.all_orders_df['YCOORD'], self.all_orders_df['XCOORD_END'], self.all_orders_df['YCOORD_END'])
+
+        
+        cost = total_cost(Ini_tour, travel_time, self.service_time_matrix, readytime, order_ids)
+
         return current_order_df, planning_df, Ini_tour
 
     def insert_new(self, current_tour, planning_df, time, interval):
@@ -173,7 +179,7 @@ class SavingsAlgorithm:
         readytime = current_order_df['READYTIME'].to_numpy()
         duetime = current_order_df['DUETIME'].to_numpy()
 
-        order_ids = current_order_df['order_id'].values.tolist()
+        order_idss = current_order_df['order_id'].values.tolist()
 
         new_orders = current_order_df['CUST_NO'].values.tolist()
         end_orders = []
@@ -262,5 +268,7 @@ class SavingsAlgorithm:
 
         current_orders = self._get_current_orders(
             current_tour, planning_df, time)
+
+        cost = total_cost(current_tour, self.travel_time_matrix, self.service_time_matrix, readytime, order_idss)
 
         return current_order_df, planning_df, current_tour, current_orders
