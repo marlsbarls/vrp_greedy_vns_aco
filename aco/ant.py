@@ -4,13 +4,15 @@ from aco.vrptw_base import VrptwGraph
 from threading import Event
 import ast
 import time
+import vns.src.config.preprocessing_config as prep_cfg
+
 
 
 
 
 class Ant:
     # MOD: Arguments path handover and time slice passed and initialized
-    def __init__(self, path_handover, time_slice, service_time_matrix, graph: VrptwGraph, start_index=0):
+    def __init__(self, path_handover, time_slice, service_time_matrix, order_ids, graph: VrptwGraph, start_index=0):
         super()
         self.graph = graph
         self.current_index = start_index
@@ -21,7 +23,9 @@ class Ant:
         self.time_slice = time_slice
         self.path_handover = path_handover
 
+        # MOD: Marlene
         self.service_time_matrix = service_time_matrix
+        self.order_ids = order_ids
 
 
         # MOD: For index to visit, distinguish between time slice 0 and others
@@ -89,9 +93,16 @@ class Ant:
 
             # 如果早于客户要求的时间窗(ready_time)，则需要等待
             # If it is earlier than the ready_time requested by the customer, wait for the
+            # self.vehicle_travel_time += dist + max(
+            #     self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0) + self.graph.all_nodes[
+            #                                 next_index].service_time
+            # Time before order (without service time)
             self.vehicle_travel_time += dist + max(
-                self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0) + self.graph.all_nodes[
-                                            next_index].service_time
+                self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0)
+            
+            service_time = Ant.get_service_time(next_index, self.service_time_matrix, self.vehicle_travel_time, self.order_ids)
+            self.vehicle_travel_time += service_time
+            
 
             self.index_to_visit.remove(next_index)
 
@@ -103,8 +114,12 @@ class Ant:
     def get_active_vehicles_num(self):
         return self.travel_path.count(0)-1
 
-    def get_service_time(self):
-        return
+    @staticmethod
+    def get_service_time(next_index, service_time_matrix, time, order_ids):
+        traffic_phase = "off_peak" if time < prep_cfg.traffic_times["phase_transition"][
+                "from_shift_start"] else "phase_transition" if time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
+        service_time = service_time_matrix[order_ids[next_index]+":"+traffic_phase]
+        return service_time
 
     def check_condition(self, next_index) -> bool:
         """
@@ -452,7 +467,8 @@ class Ant:
         i_start = 1
         while count < times:
             temp_path, temp_distance, temp_i = Ant.local_search_once(self.graph, new_path, new_path_distance, i_start,
-                                                                     stop_event, self.path_handover, self.time_slice)
+                                                                     stop_event, self.path_handover, self.time_slice,
+                                                                     self.service_time_matrix)
             if temp_path is not None:
                 count += 1
 

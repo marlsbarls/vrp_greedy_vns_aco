@@ -25,16 +25,13 @@ class Node:
         self.ready_time = ready_time
         self.due_time = due_time
         self.service_time = service_time
-        # TODO: make path relative and include correct file_name
-        # dir_name = os.path.dirname(os.path.realpath('__file__'))
-        # self.service_time_matrix = DistanceMatrix.load_file('C:/Users/Marlene/Documents/aaaaMaster/Masterarbeit/Code/thesis_marlene/vns/data/results_preprocessing/2020-07-07_service_times')
-        # service_time_matrix = DistanceMatrix.load_file(os.path.join(
-        # dir_name, 'data', 'results_preprocessing', file + '_service_times'))
+
 
         # MOD: see above
         self.available_time = available_time
         self.x_end = x_end
         self.y_end = y_end
+
 
 
 class VrptwGraph:

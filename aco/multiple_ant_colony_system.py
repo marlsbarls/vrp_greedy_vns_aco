@@ -17,7 +17,7 @@ import os
 
 # MOD: Arguments source, path_handover, path_map, folder_name_result, alpha and time_slice passed from execution file
 class MultipleAntColonySystem:
-    def __init__(self, graph: VrptwGraph, source, path_handover, path_map, folder_name_result, ants_num=10, alpha=1,
+    def __init__(self, graph: VrptwGraph, source, path_handover, path_map, folder_name_result, service_time_matrix, order_ids, ants_num=10, alpha=1,
                  beta=1, q0=0.1, time_slice=0, whether_or_not_to_show_figure=True):
         super()
         # graph 结点的位置、服务时间信息 Location of nodes, service hours information
@@ -45,6 +45,10 @@ class MultipleAntColonySystem:
         self.source = source
         self.path_map = path_map
         self.folder_name_result = folder_name_result
+
+        # MOD: Marlene
+        self.service_time_matrix = service_time_matrix
+        self.order_ids = order_ids
 
     @staticmethod
     def stochastic_accept(index_to_visit, transition_prob):
@@ -169,7 +173,8 @@ class MultipleAntColonySystem:
     # MOD: Arguments alpha, path_handover and time_slice added
     @staticmethod
     def acs_time(new_graph: VrptwGraph, vehicle_num: int, ants_num: int, q0: float, alpha: int, beta: int,
-                 global_path_queue: Queue, path_found_queue: Queue, stop_event: Event, path_handover, time_slice):
+                 global_path_queue: Queue, path_found_queue: Queue, stop_event: Event, path_handover, time_slice,
+                 service_time_matrix, order_ids):
         """
         对于acs_time来说，需要访问完所有的结点（路径是可行的），尽量找到travel distance更短的路径
         For acs_time, you need to visit all the nodes (where the path is possible) and try to find a path with a shorter
@@ -209,7 +214,7 @@ class MultipleAntColonySystem:
                 return
 
             for k in range(ants_num):
-                ant = Ant(path_handover, time_slice, new_graph, 0)
+                ant = Ant(path_handover, time_slice, service_time_matrix, order_ids, new_graph, 0)
                 # MOD: Local Search set to False, argument alpha added
                 thread = ants_pool.submit(MultipleAntColonySystem.new_active_ant, ant, vehicle_num, False,
                                           np.zeros(new_graph.node_num), q0, alpha, beta, stop_event)
@@ -264,7 +269,8 @@ class MultipleAntColonySystem:
     # MOD: Arguments alpha, path_handover and time_slice added
     @staticmethod
     def acs_vehicle(new_graph: VrptwGraph, vehicle_num: int, ants_num: int, q0: float, alpha: int, beta: int,
-                    global_path_queue: Queue, path_found_queue: Queue, stop_event: Event, path_handover, time_slice):
+                    global_path_queue: Queue, path_found_queue: Queue, stop_event: Event, path_handover, time_slice,
+                    service_time_matrix, order_ids):
         """
         对于acs_vehicle来说，所使用的vehicle num会比当前所找到的best path所使用的车辆数少一辆，要使用更少的车辆，尽量去访问结点，
         如果访问完了所有的结点（路径是可行的），就将通知macs
@@ -329,7 +335,7 @@ class MultipleAntColonySystem:
 
             # MOD: Argument alpha added
             for k in range(ants_num):
-                ant = Ant(path_handover, time_slice, new_graph, 0)
+                ant = Ant(path_handover, time_slice, service_time_matrix, order_ids, new_graph, 0)
                 thread = ants_pool.submit(MultipleAntColonySystem.new_active_ant, ant, vehicle_num, False, IN, q0,
                                           alpha, beta, stop_event)
 
@@ -477,7 +483,7 @@ class MultipleAntColonySystem:
             acs_vehicle_thread = Thread(target=MultipleAntColonySystem.acs_vehicle,
                                         args=(graph_for_acs_vehicle, self.best_vehicle_num - 1, self.ants_num, self.q0,
                                               self.alpha, self.beta, global_path_to_acs_vehicle, path_found_queue,
-                                              stop_event, self.path_handover, self.time_slice))
+                                              stop_event, self.path_handover, self.time_slice, self.service_time_matrix, self.order_ids))
 
             # acs_time 尝试以self.best_vehicle_num辆车去探索，找到更短的路径
             # acs_time tries to explore with self.best_vehicle_num vehicles to find a shorter path.
@@ -491,7 +497,7 @@ class MultipleAntColonySystem:
             acs_time_thread = Thread(target=MultipleAntColonySystem.acs_time,
                                      args=(graph_for_acs_time, self.best_vehicle_num, self.ants_num, self.q0, self.beta,
                                            self.alpha, global_path_to_acs_time, path_found_queue, stop_event,
-                                           self.path_handover, self.time_slice))
+                                           self.path_handover, self.time_slice, self.service_time_matrix, self.order_ids))
 
             # 启动acs_vehicle_thread和acs_time_thread，当他们找到feasible、且是比best path好的路径时，就会发送到macs中来
             # Start acs_vehicle_thread and acs_time_thread and send them to macs when they find a FEASIBLE path that is
