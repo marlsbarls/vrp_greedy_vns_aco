@@ -7,6 +7,7 @@ from aco.pre_processing import PreProcessing
 import time
 from aco.data_extension_t import DataExtension
 from aco.analysis_available_time import AnalysisAvailableTime
+from vns.src.helpers.DistanceMatrix import DistanceMatrix
 
 class Execution():
     def __init__(self):
@@ -46,7 +47,6 @@ class Execution():
         self.file_name_task_type_duration = 'task_type_duration.csv'
         self.file_name_map = 'berlin.shp'
 
-
         # Input data standard test instance
         self.intervals_order_reception = 28
         self.total_intervals = 32
@@ -59,6 +59,13 @@ class Execution():
             return False
         else:
             return True
+
+    # def return_service_time_matrix(self):
+    #     # doesnt make sense because you would have to make new class object everytime
+    #     dir_name = os.path.dirname(os.path.realpath('__file__'))
+    #     service_time_matrix = DistanceMatrix.load_file(os.path.join(
+    #     dir_name, 'data', 'results_preprocessing', self.current_file_name + '_service_times'))
+    #     return
 
     def run_data_prep(self):
         if self.source == 't':
@@ -123,6 +130,12 @@ class Execution():
             intervals = int(self.shift_length//self.interval_length)
 
             for file_name in os.listdir(self.folder_name_testfile):
+
+                dir_name = os.path.dirname(os.path.realpath('__file__'))
+                current_file_name = file_name.split('.')[0][:-7]
+                service_time_matrix = DistanceMatrix.load_file(os.path.join(
+                dir_name, 'vns', 'data', 'results_preprocessing', current_file_name + '_service_times'))
+
                 folder_name_result = 'aco/results'
                 if self.source == 'r':
                     folder_name_result += '/' + file_name[:10]

@@ -6,9 +6,11 @@ import ast
 import time
 
 
+
+
 class Ant:
     # MOD: Arguments path handover and time slice passed and initialized
-    def __init__(self, path_handover, time_slice, graph: VrptwGraph, start_index=0):
+    def __init__(self, path_handover, time_slice, service_time_matrix, graph: VrptwGraph, start_index=0):
         super()
         self.graph = graph
         self.current_index = start_index
@@ -18,6 +20,9 @@ class Ant:
         # MOD: see above
         self.time_slice = time_slice
         self.path_handover = path_handover
+
+        self.service_time_matrix = service_time_matrix
+
 
         # MOD: For index to visit, distinguish between time slice 0 and others
         if self.time_slice == 0:
@@ -97,6 +102,9 @@ class Ant:
 
     def get_active_vehicles_num(self):
         return self.travel_path.count(0)-1
+
+    def get_service_time(self):
+        return
 
     def check_condition(self, next_index) -> bool:
         """
@@ -343,7 +351,8 @@ class Ant:
 
     # MOD: path_handover and time_slice passed to use by check ant
     @staticmethod
-    def local_search_once(graph: VrptwGraph, travel_path: list, travel_distance: float, i_start, stop_event: Event, path_handover, time_slice):
+    def local_search_once(graph: VrptwGraph, travel_path: list, travel_distance: float, i_start, stop_event: Event, path_handover, time_slice,
+                          service_time_matrix):
 
         # 找出path中所有的depot的位置
         # Find the location of all depots in the path.
@@ -383,7 +392,7 @@ class Ant:
                                 # 判断发生改变的route a是否是feasible的
                                 # Determine whether the changed route a is feasible or not.
                                 success_route_a = False
-                                check_ant = Ant(path_handover, time_slice, graph, new_path[depot_before_start_a])
+                                check_ant = Ant(path_handover, time_slice, service_time_matrix, graph, new_path[depot_before_start_a])
                                 for ind in new_path[depot_before_start_a + 1:]:
                                     if check_ant.check_condition(ind):
                                         check_ant.move_to_next_index(ind)

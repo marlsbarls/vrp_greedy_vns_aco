@@ -3,8 +3,9 @@ import copy
 from aco.pre_processing import PreProcessing
 import ast
 import pandas as pd
+import os
 import vns.src.config.vns_config as cfg 
-from vns.src.helpers.DistanceMatrix import DistanceMatrix
+# from vns.src.helpers.DistanceMatrix import DistanceMatrix
 
 class Node:
     # MOD: Arguments available time and end coordinates are passed and initialized
@@ -25,7 +26,10 @@ class Node:
         self.due_time = due_time
         self.service_time = service_time
         # TODO: make path relative and include correct file_name
-        self.service_time_matrix = DistanceMatrix.load_file('C:/Users/Marlene/Documents/aaaaMaster/Masterarbeit/Code/thesis_marlene/vns/data/results_preprocessing/2020-07-07_service_times')
+        # dir_name = os.path.dirname(os.path.realpath('__file__'))
+        # self.service_time_matrix = DistanceMatrix.load_file('C:/Users/Marlene/Documents/aaaaMaster/Masterarbeit/Code/thesis_marlene/vns/data/results_preprocessing/2020-07-07_service_times')
+        # service_time_matrix = DistanceMatrix.load_file(os.path.join(
+        # dir_name, 'data', 'results_preprocessing', file + '_service_times'))
 
         # MOD: see above
         self.available_time = available_time
