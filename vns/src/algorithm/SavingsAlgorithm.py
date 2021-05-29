@@ -1,7 +1,7 @@
 import numpy as np
-from src.algorithm.improved_vns import create_planning_df, total_cost, get_travel_time_matrix
-import src.config.vns_config as cfg
-import src.config.preprocessing_config as config
+from vns.src.algorithm.improved_vns import create_planning_df, total_cost, get_travel_time_matrix
+import vns.src.config.vns_config as cfg
+import vns.src.config.preprocessing_config as config
 
 
 class SavingsAlgorithm:

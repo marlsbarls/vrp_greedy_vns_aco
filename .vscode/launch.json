@@ -4,18 +4,19 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "Python: aco execution",
             "type": "python",
             "request": "launch",
             "program": "C:/Users/Marlene/Documents/aaaaMaster/Masterarbeit/Code/thesis_marlene/aco/execution.py",
             "console": "integratedTerminal"
-        }
+        },
         {
             "name": "Python: main execution",
             "type": "python",
             "request": "launch",
-            "program": "C:/Users/Marlene/Documents/aaaaMaster/Masterarbeit/Code/thesis_marlene/main.py",
+            "program": "/Users/marlenebuhl/Documents/University/Code Segments/thesis_marlene/main.py",
             "console": "integratedTerminal"
         }
     ]

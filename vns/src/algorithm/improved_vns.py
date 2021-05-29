@@ -10,10 +10,10 @@ import copy
 import time
 import matplotlib
 import matplotlib.pyplot as plt
-import src.config.vns_config as cfg
-import src.config.preprocessing_config as prep_cfg
+import vns.src.config.vns_config as cfg
+import vns.src.config.preprocessing_config as prep_cfg
 from math import radians, cos, sin, asin, sqrt, exp
-from src.helpers.DistanceMatrix import DistanceMatrix
+from vns.src.helpers.DistanceMatrix import DistanceMatrix
 from pathlib import Path
 from collections import namedtuple
 

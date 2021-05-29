@@ -2,13 +2,13 @@ import sys
 import os
 import numpy as np
 import pandas as pd
-from src.algorithm.SavingsAlgorithm import SavingsAlgorithm
-from src.algorithm.improved_vns import run_vns, create_planning_df, total_cost
-from src.helpers.DistanceMatrix import DistanceMatrix
-import src.config.vns_config as cfg
+from vns.src.algorithm.SavingsAlgorithm import SavingsAlgorithm
+from vns.src.algorithm.improved_vns import run_vns, create_planning_df, total_cost
+from vns.src.helpers.DistanceMatrix import DistanceMatrix
+import vns.src.config.vns_config as cfg
 from copy import deepcopy
-from src.visualizations.TourPlanVisualizer import TourPlanVisualizer
-from src.visualizations.TourVisualizer import TourVisualizer
+from vns.src.visualizations.TourPlanVisualizer import TourPlanVisualizer
+from vns.src.visualizations.TourVisualizer import TourVisualizer
 from pathlib import Path
 
 pd.set_option("display.max_colwidth", 10000)
@@ -22,7 +22,7 @@ static_type = "experimentation"
 for file in file_names:
     test_name = test_name
     file_name = os.path.join(
-        dir_name, 'data', 'results_preprocessing', file + '_orders.csv')
+        dir_name, 'vns', 'data', 'results_preprocessing', file + '_orders.csv')
 
     outputfile = open('output_chargery_%s.txt' % file, 'w')
     outputfile.write(f'File: {file}\n')
@@ -37,9 +37,9 @@ for file in file_names:
     planning_df['SCHEDULED_TOUR'] = np.NaN
 
     travel_time_matrix = DistanceMatrix.load_file(os.path.join(
-        dir_name, 'data', 'results_preprocessing', file + '_travel_times'))
+        dir_name, 'vns', 'data', 'results_preprocessing', file + '_travel_times'))
     service_time_matrix = DistanceMatrix.load_file(os.path.join(
-        dir_name, 'data', 'results_preprocessing', file + '_service_times'))
+        dir_name, 'vns', 'data', 'results_preprocessing', file + '_service_times'))
 
     time = 0
     savings = SavingsAlgorithm(
@@ -48,11 +48,11 @@ for file in file_names:
     if (test_type == "static"):
         time = 480
         # time = 0
-        Path(os.path.join(dir_name, "experiments", "results",
+        Path(os.path.join(dir_name, 'vns', "experiments", "results",
                           file, test_name, "convergence")).mkdir(parents=True, exist_ok=True)
-        Path(os.path.join(dir_name, "experiments", "results", file,
+        Path(os.path.join(dir_name, 'vns', "experiments", "results", file,
                           test_name, "tour_plans")).mkdir(parents=True, exist_ok=True)
-        Path(os.path.join(dir_name, "experiments", "results", file,
+        Path(os.path.join(dir_name, 'vns', "experiments", "results", file,
                           test_name, "tour_visuals")).mkdir(parents=True, exist_ok=True)
         result_df = pd.DataFrame(columns=[
             'costs_per_driver', 'costs_per_hour',  'initial_cost', 'final_cost', 'idle_time', 'tour_length', 'vehicle_number', 'runtime', 'total_iterations', 'last_improvement', 'operator_performance', 'initial_tour', 'final_tour'])
