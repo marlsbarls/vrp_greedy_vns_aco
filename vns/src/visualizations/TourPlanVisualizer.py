@@ -1,7 +1,7 @@
 from string import Template
 import os
 import pandas as pd
-import src.config.preprocessing_config as prep_cfg
+import vns.src.config.preprocessing_config as prep_cfg
 import datetime
 from pathlib import Path
 import copy
