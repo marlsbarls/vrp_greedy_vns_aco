@@ -2,11 +2,13 @@ from aco.vrptw_base import VrptwGraph
 from aco.multiple_ant_colony_system import MultipleAntColonySystem
 from aco.update_process import UpdateProcess
 import os
+import pandas as pd
 from aco.data_preparation_r import DataPreparation
 from aco.pre_processing import PreProcessing
 import time
 from aco.data_extension_t import DataExtension
 from aco.analysis_available_time import AnalysisAvailableTime
+from vns.src.helpers.DistanceMatrix import DistanceMatrix
 
 class Execution():
     def __init__(self):
@@ -46,7 +48,6 @@ class Execution():
         self.file_name_task_type_duration = 'task_type_duration.csv'
         self.file_name_map = 'berlin.shp'
 
-
         # Input data standard test instance
         self.intervals_order_reception = 28
         self.total_intervals = 32
@@ -59,6 +60,7 @@ class Execution():
             return False
         else:
             return True
+
 
     def run_data_prep(self):
         if self.source == 't':
@@ -81,8 +83,7 @@ class Execution():
 
         elif self.source == 'r':
             # folder_name_target_pp = 'aco/testfiles-chargery'
-            folder_name_target_pp = 'aco/testfiles-chargery-new'
-            # folder_name_target_pp = 'aco/testfiles-chargery-original'
+            folder_name_target_pp = 'data/input_data_surve/orders'
             self.folder_name_testfile = folder_name_target_pp
 
             # #  Run Data Preparation
@@ -123,6 +124,17 @@ class Execution():
             intervals = int(self.shift_length//self.interval_length)
 
             for file_name in os.listdir(self.folder_name_testfile):
+                if not 'orders' in file_name:
+                    continue
+
+                dir_name = os.path.dirname(os.path.realpath('__file__'))
+                current_file_name = file_name.split('.')[0][:-7]
+                service_time_matrix = DistanceMatrix.load_file(os.path.join(
+                dir_name, 'vns', 'data', 'results_preprocessing', current_file_name + '_service_times'))
+                
+                all_orders_df = pd.read_csv(self.folder_name_testfile+'/'+file_name)
+                order_ids = all_orders_df['order_id'].values.tolist()
+                
                 folder_name_result = 'aco/results'
                 if self.source == 'r':
                     folder_name_result += '/' + file_name[:10]
@@ -150,9 +162,9 @@ class Execution():
 
                 for i in range(0, intervals+1):
                     time_slice = i
-                    graph = VrptwGraph(path_testfile, path_handover, time_slice, self.source, self.minutes_per_km)
+                    graph = VrptwGraph(path_testfile, path_handover, time_slice, self.source, self.minutes_per_km, service_time_matrix, order_ids)
                     macs = MultipleAntColonySystem(graph, source=self.source, path_handover=path_handover, path_map=path_map, folder_name_result=folder_name_result, ants_num=self.ants_num, alpha=self.alpha, beta=self.beta, q0=self.q0,
-                                                time_slice=time_slice, whether_or_not_to_show_figure=self.show_figure)
+                                                time_slice=time_slice, whether_or_not_to_show_figure=self.show_figure, service_time_matrix=service_time_matrix, order_ids=order_ids)
                     macs.run_multiple_ant_colony_system(total_given_time=self.total_given_time)
 
                     if i == intervals:
@@ -162,7 +174,7 @@ class Execution():
                         print('-----UPDATE PROCESS STARTED BEFORE TIME SLICE', time_slice+1, '-----')
                         up = UpdateProcess(graph, path_handover=path_handover, time_slice=time_slice,
                                         interval_length=self.interval_length, path_testfile=path_testfile, source=self.source,
-                                        minutes_per_km=self.minutes_per_km)
+                                        minutes_per_km=self.minutes_per_km, service_time_matrix=service_time_matrix, order_ids=order_ids)
                         up.runupdateprocess()
                         time.sleep(5)
 
