@@ -4,11 +4,13 @@ from aco.vrptw_base import VrptwGraph
 from threading import Event
 import ast
 import time
+import vns.src.config.preprocessing_config as prep_cfg
 
 
 class Ant:
     # MOD: Arguments path handover and time slice passed and initialized
-    def __init__(self, path_handover, time_slice, graph: VrptwGraph, start_index=0):
+    def __init__(self, path_handover, time_slice, service_time_matrix, 
+                 order_ids, graph: VrptwGraph, start_index=0):
         super()
         self.graph = graph
         self.current_index = start_index
@@ -18,6 +20,11 @@ class Ant:
         # MOD: see above
         self.time_slice = time_slice
         self.path_handover = path_handover
+
+        # MOD: Marlene
+        self.service_time_matrix = service_time_matrix
+        self.order_ids = order_ids
+
 
         # MOD: For index to visit, distinguish between time slice 0 and others
         if self.time_slice == 0:
@@ -84,9 +91,15 @@ class Ant:
 
             # 如果早于客户要求的时间窗(ready_time)，则需要等待
             # If it is earlier than the ready_time requested by the customer, wait for the
+            # self.vehicle_travel_time += dist + max(
+            #     self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0) + self.graph.all_nodes[
+            #                                 next_index].service_time
             self.vehicle_travel_time += dist + max(
-                self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0) + self.graph.all_nodes[
-                                            next_index].service_time
+                self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0)
+            
+            service_time = VrptwGraph.get_service_time(next_index, self.service_time_matrix, self.vehicle_travel_time, self.order_ids)
+            self.vehicle_travel_time += service_time
+            
 
             self.index_to_visit.remove(next_index)
 
@@ -97,6 +110,7 @@ class Ant:
 
     def get_active_vehicles_num(self):
         return self.travel_path.count(0)-1
+
 
     def check_condition(self, next_index) -> bool:
         """
@@ -109,7 +123,10 @@ class Ant:
             return False
         dist = self.graph.node_dist_mat[self.current_index][next_index]
         wait_time = max(self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0)
-        service_time = self.graph.all_nodes[next_index].service_time
+        
+        # MOD: Marlene
+        current_time = self.vehicle_travel_time + dist + wait_time
+        service_time = VrptwGraph.get_service_time(next_index, self.service_time_matrix, current_time, self.order_ids)
 
         # 检查访问某一个旅客之后，能否回到服务店
         # Checking to see if you can return to the depot after visiting a particular customer.
@@ -247,7 +264,7 @@ class Ant:
 
             # check_ant从front_depot_index出发
             # check_ant from front_depot_index
-            check_ant = Ant(self.path_handover, self.time_slice, self.graph, self.travel_path[front_depot_index])
+            check_ant = Ant(self.path_handover, self.time_slice, self.service_time_matrix, self.order_ids, self.graph, self.travel_path[front_depot_index])
 
             # 让check_ant 走过 path中下标从front_depot_index开始到insert_index-1的点
             # Have check_ant walk past the point in path where the index starts at
@@ -343,7 +360,8 @@ class Ant:
 
     # MOD: path_handover and time_slice passed to use by check ant
     @staticmethod
-    def local_search_once(graph: VrptwGraph, travel_path: list, travel_distance: float, i_start, stop_event: Event, path_handover, time_slice):
+    def local_search_once(graph: VrptwGraph, travel_path: list, travel_distance: float, i_start, stop_event: Event, path_handover, time_slice,
+                          service_time_matrix):
 
         # 找出path中所有的depot的位置
         # Find the location of all depots in the path.
@@ -383,7 +401,7 @@ class Ant:
                                 # 判断发生改变的route a是否是feasible的
                                 # Determine whether the changed route a is feasible or not.
                                 success_route_a = False
-                                check_ant = Ant(path_handover, time_slice, graph, new_path[depot_before_start_a])
+                                check_ant = Ant(path_handover, time_slice, service_time_matrix, graph, new_path[depot_before_start_a])
                                 for ind in new_path[depot_before_start_a + 1:]:
                                     if check_ant.check_condition(ind):
                                         check_ant.move_to_next_index(ind)
@@ -443,7 +461,8 @@ class Ant:
         i_start = 1
         while count < times:
             temp_path, temp_distance, temp_i = Ant.local_search_once(self.graph, new_path, new_path_distance, i_start,
-                                                                     stop_event, self.path_handover, self.time_slice)
+                                                                     stop_event, self.path_handover, self.time_slice,
+                                                                     self.service_time_matrix)
             if temp_path is not None:
                 count += 1
 
