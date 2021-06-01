@@ -162,7 +162,7 @@ class Execution():
 
                 for i in range(0, intervals+1):
                     time_slice = i
-                    graph = VrptwGraph(path_testfile, path_handover, time_slice, self.source, self.minutes_per_km)
+                    graph = VrptwGraph(path_testfile, path_handover, time_slice, self.source, self.minutes_per_km, service_time_matrix, order_ids)
                     macs = MultipleAntColonySystem(graph, source=self.source, path_handover=path_handover, path_map=path_map, folder_name_result=folder_name_result, ants_num=self.ants_num, alpha=self.alpha, beta=self.beta, q0=self.q0,
                                                 time_slice=time_slice, whether_or_not_to_show_figure=self.show_figure, service_time_matrix=service_time_matrix, order_ids=order_ids)
                     macs.run_multiple_ant_colony_system(total_given_time=self.total_given_time)
@@ -174,7 +174,7 @@ class Execution():
                         print('-----UPDATE PROCESS STARTED BEFORE TIME SLICE', time_slice+1, '-----')
                         up = UpdateProcess(graph, path_handover=path_handover, time_slice=time_slice,
                                         interval_length=self.interval_length, path_testfile=path_testfile, source=self.source,
-                                        minutes_per_km=self.minutes_per_km)
+                                        minutes_per_km=self.minutes_per_km, service_time_matrix=service_time_matrix, order_ids=order_ids)
                         up.runupdateprocess()
                         time.sleep(5)
 

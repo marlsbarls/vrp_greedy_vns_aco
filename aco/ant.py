@@ -7,12 +7,10 @@ import time
 import vns.src.config.preprocessing_config as prep_cfg
 
 
-
-
-
 class Ant:
     # MOD: Arguments path handover and time slice passed and initialized
-    def __init__(self, path_handover, time_slice, service_time_matrix, order_ids, graph: VrptwGraph, start_index=0):
+    def __init__(self, path_handover, time_slice, service_time_matrix, 
+                 order_ids, graph: VrptwGraph, start_index=0):
         super()
         self.graph = graph
         self.current_index = start_index
@@ -96,11 +94,10 @@ class Ant:
             # self.vehicle_travel_time += dist + max(
             #     self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0) + self.graph.all_nodes[
             #                                 next_index].service_time
-            # Time before order (without service time)
             self.vehicle_travel_time += dist + max(
                 self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0)
             
-            service_time = Ant.get_service_time(next_index, self.service_time_matrix, self.vehicle_travel_time, self.order_ids)
+            service_time = VrptwGraph.get_service_time(next_index, self.service_time_matrix, self.vehicle_travel_time, self.order_ids)
             self.vehicle_travel_time += service_time
             
 
@@ -114,12 +111,6 @@ class Ant:
     def get_active_vehicles_num(self):
         return self.travel_path.count(0)-1
 
-    @staticmethod
-    def get_service_time(next_index, service_time_matrix, time, order_ids):
-        traffic_phase = "off_peak" if time < prep_cfg.traffic_times["phase_transition"][
-                "from_shift_start"] else "phase_transition" if time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
-        service_time = service_time_matrix[order_ids[next_index]+":"+traffic_phase]
-        return service_time
 
     def check_condition(self, next_index) -> bool:
         """
@@ -132,7 +123,10 @@ class Ant:
             return False
         dist = self.graph.node_dist_mat[self.current_index][next_index]
         wait_time = max(self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0)
-        service_time = self.graph.all_nodes[next_index].service_time
+        
+        # MOD: Marlene
+        current_time = self.vehicle_travel_time + dist + wait_time
+        service_time = VrptwGraph.get_service_time(next_index, self.service_time_matrix, current_time, self.order_ids)
 
         # 检查访问某一个旅客之后，能否回到服务店
         # Checking to see if you can return to the depot after visiting a particular customer.
@@ -270,7 +264,7 @@ class Ant:
 
             # check_ant从front_depot_index出发
             # check_ant from front_depot_index
-            check_ant = Ant(self.path_handover, self.time_slice, self.graph, self.travel_path[front_depot_index])
+            check_ant = Ant(self.path_handover, self.time_slice, self.service_time_matrix, self.order_ids, self.graph, self.travel_path[front_depot_index])
 
             # 让check_ant 走过 path中下标从front_depot_index开始到insert_index-1的点
             # Have check_ant walk past the point in path where the index starts at

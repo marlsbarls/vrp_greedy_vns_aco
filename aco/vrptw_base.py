@@ -5,7 +5,7 @@ import ast
 import pandas as pd
 import os
 import vns.src.config.vns_config as cfg 
-# from vns.src.helpers.DistanceMatrix import DistanceMatrix
+import vns.src.config.preprocessing_config as prep_cfg
 
 class Node:
     # MOD: Arguments available time and end coordinates are passed and initialized
@@ -36,8 +36,12 @@ class Node:
 
 class VrptwGraph:
     # MOD: Arguments path_handover, time_slice, source, minutes_per_km are passed and initialized
-    def __init__(self, file_path, path_handover, time_slice, source, minutes_per_km, rho=0.1):
+    def __init__(self, file_path, path_handover, time_slice, source, minutes_per_km, service_time_matrix, order_ids, rho=0.1):
         super()
+        # MOD: Marlene
+        self.service_time_matrix = service_time_matrix
+        self.order_ids = order_ids
+
         # MOD: see above
         self.minutes_per_km = minutes_per_km
         self.source = source
@@ -59,6 +63,8 @@ class VrptwGraph:
 
         # 启发式信息矩阵 Heuristic Information Matrix
         self.heuristic_info_mat = 1 / self.node_dist_mat
+
+        
 
     def copy(self, init_pheromone_val):
         new_graph = copy.deepcopy(self)
@@ -154,9 +160,15 @@ class VrptwGraph:
             self.pheromone_mat[current_ind][next_ind] += self.rho/best_path_distance
             current_ind = next_ind
 
-    
-    def get_service_time():
-        return
+    @staticmethod
+    def get_service_time(next_index, service_time_matrix, time, order_ids):
+        if next_index == 0:
+            return 0
+        else:
+            traffic_phase = "off_peak" if time < prep_cfg.traffic_times["phase_transition"][
+                    "from_shift_start"] else "phase_transition" if time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
+            service_time = service_time_matrix[order_ids[next_index]+":"+traffic_phase]
+            return service_time
 
     def nearest_neighbor_heuristic(self, max_vehicle_num=None):
         index_to_visit = []
@@ -192,9 +204,12 @@ class VrptwGraph:
 
                 dist = self.node_dist_mat[current_index][nearest_next_index]
                 wait_time = max(self.all_nodes[nearest_next_index].ready_time - current_time - dist, 0)
-                service_time = self.all_nodes[nearest_next_index].service_time
 
-                current_time += dist + wait_time + service_time
+                # MOD: Marlene
+                current_time += dist + wait_time
+                service_time = VrptwGraph.get_service_time(nearest_next_index, self.service_time_matrix, 
+                                                           current_time, self.order_ids)
+                current_time += service_time
                 index_to_visit.remove(nearest_next_index)
 
                 travel_distance += self.node_dist_mat[current_index][nearest_next_index]
@@ -223,8 +238,12 @@ class VrptwGraph:
 
             dist = self.node_dist_mat[current_index][next_index]
             wait_time = max(self.all_nodes[next_index].ready_time - current_time - dist, 0)
-            service_time = self.all_nodes[next_index].service_time
 
+            # MOD: Marlene
+            temp_current_time = current_time + dist + wait_time
+            service_time = VrptwGraph.get_service_time(next_index, self.service_time_matrix, temp_current_time,
+                                                       self.order_ids)
+            
             # 检查访问某一个旅客之后，能否回到服务店
             # Checking to see if you can return to the depot after visiting a particular customer.
             if current_time + dist + wait_time + service_time + self.node_dist_mat[next_index][0] > \

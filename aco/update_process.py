@@ -7,7 +7,11 @@ import vns.src.config.vns_config as cfg
 
 class UpdateProcess:
     def __init__(self, graph: VrptwGraph, path_handover, time_slice, interval_length, path_testfile, source,
-                 minutes_per_km):
+                 minutes_per_km, service_time_matrix, order_ids):
+        # MOD: Marlene
+        self.service_time_matrix = service_time_matrix
+        self.order_ids = order_ids
+        
         self.graph = graph
         self.path_handover = path_handover
         self.path_testfile = path_testfile
@@ -119,8 +123,13 @@ class UpdateProcess:
                 following_idx = self.graph.all_nodes[self.current_best_path[i+1]].id
                 current_idx = self.current_best_path[i]
                 travel_time_previous = travel_time
-                travel_time += self.node_dist_mat[current_idx][following_idx] + self.graph.all_nodes[current_idx].\
-                    service_time
+
+                # MOD: Marlene 
+                travel_time += self.node_dist_mat[current_idx][following_idx]
+                service_time = VrptwGraph.get_service_time(current_idx, self.service_time_matrix, 
+                                                           travel_time, self. order_ids)
+                travel_time += service_time
+                
 
                 if travel_time <= self.next_time_passed:
                     committed_nodes.append(current_idx)
@@ -172,7 +181,10 @@ class UpdateProcess:
 
         travel_time = self.node_dist_mat[i][following_idx]
         wait_time = max(self.all_nodes[following_idx].ready_time - vehicle_travel_time - travel_time, 0)
-        service_time = self.all_nodes[following_idx].service_time
+
+        # MOD: Marlene
+        current_time = vehicle_travel_time + travel_time + wait_time
+        service_time = VrptwGraph.get_service_time(following_idx, self.service_time_matrix, current_time, self.order_ids)
 
         # Checking to see if you can return to the depot after visiting a particular customer.
         if vehicle_travel_time + travel_time + wait_time + service_time + self.node_dist_mat[following_idx][0] > \
@@ -241,8 +253,13 @@ class UpdateProcess:
 
                                     else:
                                         total_addition = True
-                                        travel_time += self.node_dist_mat[i][following_idx] + self.all_nodes[
-                                            following_idx].service_time
+                                        
+                                        # MOD: Marlene
+                                        travel_time += self.node_dist_mat[i][following_idx]
+                                        service_time = VrptwGraph.get_service_time(following_idx, self.service_time_matrix,
+                                                                                   travel_time, self.order_ids)
+                                        travel_time += service_time
+
                                         distance += self.node_dist_mat[i][following_idx]
 
                         if total_addition:
