@@ -5,7 +5,7 @@ Modified by Lucas Merker & Marlene Buhl
 import pandas as pd
 import numpy as np
 from datetime import datetime, date
-import src.config.preprocessing_config as cfg
+import vns.src.config.preprocessing_config as cfg
 import os
 from pathlib import Path
 

@@ -2,13 +2,13 @@ import sys
 import os
 import numpy as np
 import pandas as pd
-from src.algorithm_solomon.SavingsAlgorithm import SavingsAlgorithm
-from src.algorithm_solomon.improved_vns_solomon import run_vns, total_distance
-from src.preprocessing.DataExtension import DataExtension
-from src.helpers.DistanceMatrix import DistanceMatrix
-import src.algorithm_solomon.vns_config as cfg
+from vns.src.algorithm_solomon.SavingsAlgorithm import SavingsAlgorithm
+from vns.src.algorithm_solomon.improved_vns_solomon import run_vns, total_distance
+from vns.src.preprocessing.DataExtension import DataExtension
+from vns.src.helpers.DistanceMatrix import DistanceMatrix
+import vns.src.algorithm_solomon.vns_config as cfg
 from copy import deepcopy
-import src.config.preprocessing_config as prep_cfg
+import vns.src.config.preprocessing_config as prep_cfg
 from pathlib import Path
 import re
 

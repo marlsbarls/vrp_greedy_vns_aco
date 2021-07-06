@@ -1,6 +1,6 @@
 import numpy as np
 import copy
-from src.algorithm_solomon.improved_vns_solomon import time_checker, check_sequence, total_distance, create_planning_df
+from vns.src.algorithm_solomon.improved_vns_solomon import time_checker, check_sequence, total_distance, create_planning_df
 
 
 class SavingsAlgorithm:

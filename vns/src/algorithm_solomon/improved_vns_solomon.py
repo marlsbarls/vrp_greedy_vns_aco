@@ -5,7 +5,7 @@ import os
 import numpy as np
 import copy
 import time
-import src.config.vns_config as cfg
+import vns.src.config.vns_config as cfg
 import math
 from math import radians, cos, sin, asin, sqrt
 import random as rd
@@ -123,7 +123,7 @@ def visibility_index(sub_tour, visibility):
 '''Exporting functions'''
 
 
-def create_planning_df(tours, current_order_df, distance_matrix, service_time, ready_time, due_time, planning_df=None, interval=0):
+def create_planning_df(tours, current_order_df, distance_matrix, service_time, ready_time, planning_df=None, interval=0):
     if planning_df is None:
         planning_df = current_order_df[[
             'CUST_NO', 'SERVICETIME']].copy(deep=True)

@@ -11,10 +11,18 @@ from aco.analysis_available_time import AnalysisAvailableTime
 from vns.src.helpers.DistanceMatrix import DistanceMatrix
 
 class Execution():
-    def __init__(self):
+    def __init__(self, test_files, dynamic, source):
+        # MOD: Marlene
+        self.test_files = test_files
+        self.dynamic = dynamic
+        self.source = source
+        if self.source == 'surve_mobility':
+            self.source = 'r'
+        if self.source == 'solomon':
+            self.source = 't'
         
         # Input data overall
-        self.source = 'r'  # 'r': realworld test instance, 't': standard test instance
+        # self.source = 'r'  # 'r': realworld test instance, 't': standard test instance
         self.ants_num = 100
         self.alpha = 1  # new
         self.beta = 1  # 2
@@ -62,63 +70,70 @@ class Execution():
             return True
 
 
-    def run_data_prep(self):
-        if self.source == 't':
+    # def run_data_prep(self):
+    #     if self.source == 't':
 
-            # Run Analysis of Available Time
-            print('-----ANALYSIS AVAILABLE TIME STARTED-----')
-            aat = AnalysisAvailableTime(self.folder_name_analysis_available_time, self.intervals_order_reception, self.days_in_analysis)
-            dynamicity, lam = aat.run_analysis()
-            folder_name_target_pp = 'aco/testfiles-solomon-100'
-            self.folder_name_testfile = folder_name_target_pp
+    #         # Run Analysis of Available Time
+    #         print('-----ANALYSIS AVAILABLE TIME STARTED-----')
+    #         aat = AnalysisAvailableTime(self.folder_name_analysis_available_time, self.intervals_order_reception, self.days_in_analysis)
+    #         dynamicity, lam = aat.run_analysis()
+    #         folder_name_target_pp = 'aco/testfiles-solomon-100'
+    #         self.folder_name_testfile = folder_name_target_pp
 
-            #  Run Data Extension, only run test files with identical shift duration at a time
-            for file_name in os.listdir('aco/files_unprepared'):
-                print('-----DATA EXTENSION STARTED, FILE', file_name, '-----')
-                path_original_de = os.path.join(self.folder_name_original_dp, file_name)
-                path_target_de = os.path.join(folder_name_target_pp, file_name.split('.')[0] + '-prepared.txt')
-                de = DataExtension(path_original_de, path_target_de, file_name, dynamicity, lam, self.average_orders)
-                self.shift_length = int(de.rundataextension())
-                self.interval_length = self.shift_length/self.total_intervals
+    #         #  Run Data Extension, only run test files with identical shift duration at a time
+    #         for file_name in os.listdir('aco/files_unprepared'):
+    #             print('-----DATA EXTENSION STARTED, FILE', file_name, '-----')
+    #             path_original_de = os.path.join(self.folder_name_original_dp, file_name)
+    #             path_target_de = os.path.join(folder_name_target_pp, file_name.split('.')[0] + '-prepared.txt')
+    #             de = DataExtension(path_original_de, path_target_de, file_name, dynamicity, lam, self.average_orders)
+    #             self.shift_length = int(de.rundataextension())
+    #             self.interval_length = self.shift_length/self.total_intervals
 
-        elif self.source == 'r':
-            # folder_name_target_pp = 'aco/testfiles-chargery'
-            folder_name_target_pp = 'data/input_data_surve/orders'
-            self.folder_name_testfile = folder_name_target_pp
+    #     elif self.source == 'r':
+    #         # folder_name_target_pp = 'aco/testfiles-chargery'
+    #         folder_name_target_pp = 'input_data/surve_mobility'
+    #         self.folder_name_testfile = folder_name_target_pp
 
-            # #  Run Data Preparation
-            # for file_name in os.listdir('aco/files_unprepared'):
-            #     print('-----DATA PREPARATION STARTED, FILE', file_name, '-----')
-            #     path_original_dp = os.path.join(self.folder_name_original_dp, file_name)
-            #     path_target_dp = os.path.join(self.folder_name_target_dp, file_name.split('.')[0] + '-prepared.csv')
-            #     path_hub_location = os.path.join(self.folder_name_additional_data, self.file_name_hub_location)
-            #     dp = DataPreparation(path_original_dp, path_target_dp, self.shift_begin, self.order_reception_end, self.shift_end,
-            #                         path_hub_location)
-            #     dp.rundatapreparation()
+    #         # #  Run Data Preparation
+    #         # for file_name in os.listdir('aco/files_unprepared'):
+    #         #     print('-----DATA PREPARATION STARTED, FILE', file_name, '-----')
+    #         #     path_original_dp = os.path.join(self.folder_name_original_dp, file_name)
+    #         #     path_target_dp = os.path.join(self.folder_name_target_dp, file_name.split('.')[0] + '-prepared.csv')
+    #         #     path_hub_location = os.path.join(self.folder_name_additional_data, self.file_name_hub_location)
+    #         #     dp = DataPreparation(path_original_dp, path_target_dp, self.shift_begin, self.order_reception_end, self.shift_end,
+    #         #                         path_hub_location)
+    #         #     dp.rundatapreparation()
 
-            # #  Run Pre Processing
-            # for file_name in os.listdir(self.folder_name_original_pp):
-            #     print('-----PRE PROCESSING STARTED, FILE', file_name, '-----')
-            #     path_original_pp = os.path.join(self.folder_name_original_pp, file_name)
-            #     path_target_pp = os.path.join(folder_name_target_pp, file_name.split('.')[0] + '.txt')
+    #         # #  Run Pre Processing
+    #         # for file_name in os.listdir(self.folder_name_original_pp):
+    #         #     print('-----PRE PROCESSING STARTED, FILE', file_name, '-----')
+    #         #     path_original_pp = os.path.join(self.folder_name_original_pp, file_name)
+    #         #     path_target_pp = os.path.join(folder_name_target_pp, file_name.split('.')[0] + '.txt')
 
-            #     path_charging_station = os.path.join(self.folder_name_additional_data, self.file_name_charging_station)
-            #     path_car_wash = os.path.join(self.folder_name_additional_data, self.file_name_car_wash)
-            #     path_gas_station = os.path.join(self.folder_name_additional_data, self.file_name_gas_station)
-            #     path_task_type_duration = os.path.join(self.folder_name_additional_data, self.file_name_task_type_duration)
-            #     path_task_list = path_task_type_duration
+    #         #     path_charging_station = os.path.join(self.folder_name_additional_data, self.file_name_charging_station)
+    #         #     path_car_wash = os.path.join(self.folder_name_additional_data, self.file_name_car_wash)
+    #         #     path_gas_station = os.path.join(self.folder_name_additional_data, self.file_name_gas_station)
+    #         #     path_task_type_duration = os.path.join(self.folder_name_additional_data, self.file_name_task_type_duration)
+    #         #     path_task_list = path_task_type_duration
 
-            #     dp = PreProcessing(path_original_pp, path_target_pp, file_name, path_task_list, path_charging_station,
-            #                     path_car_wash, path_gas_station, self.location_change, self.minutes_per_km,
-            #                     path_task_type_duration, self.vehicles, self.capacity)
-            #     dp.runpreprocessing()
+    #         #     dp = PreProcessing(path_original_pp, path_target_pp, file_name, path_task_list, path_charging_station,
+    #         #                     path_car_wash, path_gas_station, self.location_change, self.minutes_per_km,
+    #         #                     path_task_type_duration, self.vehicles, self.capacity)
+    #         #     dp.runpreprocessing()
 
-        else:
-            folder_name_target_pp = None 
-            self.folder_name_testfile = None
-            print('Source is required to be \'r\' (real world test instance) or \'t\' (standard test instance), folder_name_testfile is', self.folder_name_testfile, 'otherwise.')
+    #     else:
+    #         folder_name_target_pp = None 
+    #         self.folder_name_testfile = None
+    #         print('Source is required to be \'r\' (real world test instance) or \'t\' (standard test instance), folder_name_testfile is', self.folder_name_testfile, 'otherwise.')
 
     def run_macs(self):
+        # Input files
+        if self.source == 'r':
+        # if self.source == 'r' and self.dynamic == 'dynamic':
+            # folder_name_target_pp = 'aco/testfiles-chargery'
+            folder_name_target_pp = 'input_data/surve_mobility/orders'
+            self.folder_name_testfile = folder_name_target_pp
+
         #  Run MACS and Update Process alternately, Update Process is last executed prior to the last execution of MACS
         if self.intervals(self.shift_length, self.interval_length):
             intervals = int(self.shift_length//self.interval_length)
@@ -126,6 +141,12 @@ class Execution():
             for file_name in os.listdir(self.folder_name_testfile):
                 if not 'orders' in file_name:
                     continue
+                if not file_name.split('_')[0] in self.test_files:
+                    continue
+
+                print('---------------')
+                print(file_name)
+                print('--------------')
 
                 dir_name = os.path.dirname(os.path.realpath('__file__'))
                 current_file_name = file_name.split('.')[0][:-7]
@@ -162,7 +183,7 @@ class Execution():
 
                 for i in range(0, intervals+1):
                     time_slice = i
-                    graph = VrptwGraph(path_testfile, path_handover, time_slice, self.source, self.minutes_per_km, service_time_matrix, order_ids)
+                    graph = VrptwGraph(path_testfile, path_handover, time_slice, self.source, self.minutes_per_km, service_time_matrix, order_ids, test_type=self.dynamic)
                     macs = MultipleAntColonySystem(graph, source=self.source, path_handover=path_handover, path_map=path_map, folder_name_result=folder_name_result, ants_num=self.ants_num, alpha=self.alpha, beta=self.beta, q0=self.q0,
                                                 time_slice=time_slice, whether_or_not_to_show_figure=self.show_figure, service_time_matrix=service_time_matrix, order_ids=order_ids)
                     macs.run_multiple_ant_colony_system(total_given_time=self.total_given_time)
@@ -174,7 +195,7 @@ class Execution():
                         print('-----UPDATE PROCESS STARTED BEFORE TIME SLICE', time_slice+1, '-----')
                         up = UpdateProcess(graph, path_handover=path_handover, time_slice=time_slice,
                                         interval_length=self.interval_length, path_testfile=path_testfile, source=self.source,
-                                        minutes_per_km=self.minutes_per_km, service_time_matrix=service_time_matrix, order_ids=order_ids)
+                                        minutes_per_km=self.minutes_per_km, service_time_matrix=service_time_matrix, order_ids=order_ids, test_type=self.dynamic)
                         up.runupdateprocess()
                         time.sleep(5)
 
@@ -182,7 +203,7 @@ class Execution():
             print("ERROR: working_day_intervals must be divisor of shift_length")
 
 
-execution = Execution()
-execution.run_data_prep()
-execution.run_macs()
+# execution = Execution()
+# execution.run_data_prep()
+# execution.run_macs()
 
