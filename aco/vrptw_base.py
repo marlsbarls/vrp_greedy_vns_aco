@@ -31,16 +31,18 @@ class Node:
         self.available_time = available_time
         self.x_end = x_end
         self.y_end = y_end
+        
 
 
 
 class VrptwGraph:
     # MOD: Arguments path_handover, time_slice, source, minutes_per_km are passed and initialized
-    def __init__(self, file_path, path_handover, time_slice, source, minutes_per_km, service_time_matrix, order_ids, rho=0.1):
+    def __init__(self, file_path, path_handover, time_slice, source, minutes_per_km, service_time_matrix, order_ids, test_type, rho=0.1):
         super()
         # MOD: Marlene
         self.service_time_matrix = service_time_matrix
         self.order_ids = order_ids
+        self.test_type = test_type
 
         # MOD: see above
         self.minutes_per_km = minutes_per_km
@@ -88,9 +90,14 @@ class VrptwGraph:
         vehicle_capacity = cfg.capacity
         order_df = pd.read_csv(file_path)
         for index, rows in order_df.iterrows():
-            row_list = [str(rows.CUST_NO), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(rows.READYTIME), 
-                        str(rows.DUETIME), str(rows.SERVICETIME), str(rows.READYTIME), str(rows.YCOORD_END), str(rows.XCOORD_END)]
-            self.node_list.append(row_list)
+            if self.test_type == 'static':
+                row_list = [str(rows.CUST_NO), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(0), 
+                            str(rows.DUETIME), str(rows.SERVICETIME), str(0), str(rows.YCOORD_END), str(rows.XCOORD_END)]
+                self.node_list.append(row_list)
+            elif self.test_type == 'dynamic':
+                row_list = [str(rows.CUST_NO), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(rows.READYTIME), 
+                            str(rows.DUETIME), str(rows.SERVICETIME), str(rows.READYTIME), str(rows.YCOORD_END), str(rows.XCOORD_END)]
+                self.node_list.append(row_list)
 
         all_nodes = list(
             Node(int(item[0]), float(item[1]), float(item[2]), float(item[3]), float(item[4]), float(item[5]),

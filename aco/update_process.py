@@ -7,10 +7,11 @@ import vns.src.config.vns_config as cfg
 
 class UpdateProcess:
     def __init__(self, graph: VrptwGraph, path_handover, time_slice, interval_length, path_testfile, source,
-                 minutes_per_km, service_time_matrix, order_ids):
+                 minutes_per_km, service_time_matrix, order_ids, test_type):
         # MOD: Marlene
         self.service_time_matrix = service_time_matrix
         self.order_ids = order_ids
+        self.test_type = test_type
         
         self.graph = graph
         self.path_handover = path_handover
@@ -50,9 +51,14 @@ class UpdateProcess:
         vehicle_capacity = cfg.capacity
         order_df = pd.read_csv(file_path)
         for index, rows in order_df.iterrows():
-            row_list = [str(rows.CUST_NO), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(rows.READYTIME), 
-                        str(rows.DUETIME), str(rows.SERVICETIME), str(rows.READYTIME), str(rows.YCOORD_END), str(rows.XCOORD_END)]
-            node_list.append(row_list)
+            if self.test_type == 'static':
+                row_list = [str(rows.CUST_NO), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(0), 
+                            str(rows.DUETIME), str(rows.SERVICETIME), str(0), str(rows.YCOORD_END), str(rows.XCOORD_END)]
+                node_list.append(row_list)
+            elif self.test_type == 'dynamic':
+                row_list = [str(rows.CUST_NO), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(rows.READYTIME), 
+                            str(rows.DUETIME), str(rows.SERVICETIME), str(rows.READYTIME), str(rows.YCOORD_END), str(rows.XCOORD_END)]
+                node_list.append(row_list)
 
         all_nodes_list = list(
                 Node(int(item[0]), float(item[1]), float(item[2]), float(item[3]), float(item[4]), float(item[5]),
@@ -287,8 +293,11 @@ class UpdateProcess:
     def print_result_to_file(self):
         self.insertion()
 
+        # MOD: Marlene
+        cost = self.current_best_distance * cfg.cost_per_minute + self.current_best_vehicle_num + cfg.cost_per_driver
+
         result_tuple = (str(self.current_best_path), str(self.current_best_distance), str(
-            self.current_best_vehicle_num), str(self.committed_nodes))
+            self.current_best_vehicle_num), str(self.committed_nodes), str(cost))
         file = open(self.path_handover, 'w')
         separator = '\n'
         file.write(separator.join(result_tuple))

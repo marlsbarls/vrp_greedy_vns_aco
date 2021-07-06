@@ -1,5 +1,5 @@
 import numpy as np
-from vns.src.algorithm.improved_vns import create_planning_df, total_cost, get_travel_time_matrix
+from vns.src.algorithm.improved_vns import create_planning_df, total_cost, get_travel_time_matrix, total_distance, idle_time
 import vns.src.config.vns_config as cfg
 import vns.src.config.preprocessing_config as config
 
