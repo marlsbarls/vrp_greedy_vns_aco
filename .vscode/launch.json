@@ -16,7 +16,7 @@
             "name": "Python: main execution",
             "type": "python",
             "request": "launch",
-            "program": "/Users/marlenebuhl/Documents/University/Code Segments/thesis_marlene/main.py",
+            "program": "/Users/marlenebuhl/Documents/University/code/thesis_marlene/main.py",
             "console": "integratedTerminal"
         }
     ]
