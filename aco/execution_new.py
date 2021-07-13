@@ -146,7 +146,7 @@ class Execution():
 
                 print('---------------')
                 print(file_name)
-                print('--------------')
+                print('---------------')
 
                 dir_name = os.path.dirname(os.path.realpath('__file__'))
                 current_file_name = file_name.split('.')[0][:-7]
