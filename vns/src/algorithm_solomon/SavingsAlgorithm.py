@@ -77,7 +77,7 @@ class SavingsAlgorithm:
         return tour_with_index
 
     def initialization(self, time=0):
-        if(self.dynamic):
+        if(self.dynamic == 'dynamic'):
             current_order_df = self.all_orders_df[(
                 self.all_orders_df.AVAILABLETIME <= time)]
         else:

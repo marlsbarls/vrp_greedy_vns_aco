@@ -14,10 +14,10 @@ class DataPreparation:
     def __init__(self, base_dir, original_file):
         self.base_dir = base_dir
         self.target_folder = os.path.join(
-            self.base_dir, "data", "results_data_preparation")
+            self.base_dir, "results", "data_preparation")
         Path(self.target_folder).mkdir(parents=True, exist_ok=True)
         self.original_file_path = os.path.join(
-            self.base_dir, "data", "raw_data", original_file + '.csv')
+            self.base_dir, "input_data", "data_preparation", "orders_raw", original_file + '.csv')
         self.target_file_path = os.path.join(
             self.target_folder, original_file + '.csv')
         self.shift_begin = pd.to_datetime(
@@ -27,7 +27,7 @@ class DataPreparation:
         self.shift_end = pd.to_datetime(
             cfg.shift_end, format='%H:%M:%S').time()
         hub = pd.read_csv(os.path.join(
-            self.base_dir, "data", "locations", "hub_location.csv"))
+            self.base_dir, "input_data", "data_preparation", "locations", "hub_location.csv"))
         self.x_depot = hub.iloc[0, 1]
         self.y_depot = hub.iloc[0, 0]
         self.df = pd.read_csv(self.original_file_path,

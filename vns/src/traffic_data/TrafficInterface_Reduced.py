@@ -1,5 +1,5 @@
 
-import src.config.preprocessing_config as cfg
+import vns.src.config.preprocessing_config as cfg
 from collections import OrderedDict
 from shapely.geometry import Point
 import requests

@@ -1,9 +1,9 @@
 import numpy as np
 import copy
-from aco.pre_processing import PreProcessing
 import ast
 import pandas as pd
 import os
+from math import radians, cos, sin, asin, sqrt
 import vns.src.config.vns_config as cfg 
 import vns.src.config.preprocessing_config as prep_cfg
 
@@ -27,8 +27,15 @@ class Node:
         self.service_time = service_time
 
 
-        # MOD: see above
+        # # MOD: see above
+        # if test_type == 'static':
+        #     self.available_time = 0
+        # elif test_type == 'dynamic':
+        #     self.available_time = available_time
+
         self.available_time = available_time
+        
+        
         self.x_end = x_end
         self.y_end = y_end
         
@@ -37,16 +44,21 @@ class Node:
 
 class VrptwGraph:
     # MOD: Arguments path_handover, time_slice, source, minutes_per_km are passed and initialized
-    def __init__(self, file_path, path_handover, time_slice, source, minutes_per_km, service_time_matrix, order_ids, test_type, rho=0.1):
+    def __init__(self, file_path, path_handover, time_slice, source, minutes_per_km, service_time_matrix=None, order_ids=None, 
+                 test_type='dynamic', rho=0.1, opt_time=False):
         super()
-        # MOD: Marlene
-        self.service_time_matrix = service_time_matrix
-        self.order_ids = order_ids
+         # MOD: Marlene
         self.test_type = test_type
+        self.source = source
+        if self.source == 'r':
+            self.service_time_matrix = service_time_matrix
+            self.order_ids = order_ids
+        self.opt_time = opt_time
+        # only relevant in _cal_nearest_next_index
+        self.opt_time_next_index = True
 
         # MOD: see above
         self.minutes_per_km = minutes_per_km
-        self.source = source
         self.time_slice = time_slice
         self.file_path = file_path
         self.node_num, self.nodes, self.node_dist_mat, self.vehicle_num, self.vehicle_capacity, self.all_nodes \
@@ -66,7 +78,20 @@ class VrptwGraph:
         # 启发式信息矩阵 Heuristic Information Matrix
         self.heuristic_info_mat = 1 / self.node_dist_mat
 
-        
+    def haversine(self, latitude_target, longitude_target, latitude_origin, longitude_origin):
+        r = 6372.8
+        d_latitude = radians(latitude_origin - latitude_target)
+        d_longitude = radians(longitude_origin - longitude_target)
+        latitude_target = radians(latitude_target)
+        latitude_origin = radians(latitude_origin)
+
+        a = sin(d_latitude / 2) ** 2 + cos(latitude_target) * cos(latitude_origin) * sin(d_longitude / 2) ** 2
+        c = 2 * asin(sqrt(a))
+
+        haversine_dist = r * c
+
+        return haversine_dist
+    
 
     def copy(self, init_pheromone_val):
         new_graph = copy.deepcopy(self)
@@ -85,19 +110,29 @@ class VrptwGraph:
         self.node_list = []
         nodes = []
 
-        # l. 77-82 modified
+        # MOD: Marlene
         vehicle_num = cfg.num_vehicles
         vehicle_capacity = cfg.capacity
         order_df = pd.read_csv(file_path)
         for index, rows in order_df.iterrows():
-            if self.test_type == 'static':
-                row_list = [str(rows.CUST_NO), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(0), 
-                            str(rows.DUETIME), str(rows.SERVICETIME), str(0), str(rows.YCOORD_END), str(rows.XCOORD_END)]
-                self.node_list.append(row_list)
-            elif self.test_type == 'dynamic':
-                row_list = [str(rows.CUST_NO), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(rows.READYTIME), 
+            if self.source == 'r':
+                if self.test_type == 'dynamic':
+                    row_list = [str(rows.CUST_NO), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(rows.READYTIME), 
                             str(rows.DUETIME), str(rows.SERVICETIME), str(rows.READYTIME), str(rows.YCOORD_END), str(rows.XCOORD_END)]
+                elif self.test_type == 'static':
+                    row_list = [str(rows.CUST_NO), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(rows.READYTIME), 
+                            str(rows.DUETIME), str(rows.SERVICETIME), str(0.0), str(rows.YCOORD_END), str(rows.XCOORD_END)]
                 self.node_list.append(row_list)
+            elif self.source == 't':
+                if self.test_type == 'dynamic':
+                    row_list = [str(int(rows.CUST_NO-1)), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(rows.READYTIME), 
+                            str(rows.DUETIME), str(rows.SERVICETIME), str(rows.READYTIME), str(rows.YCOORD), str(rows.XCOORD)]
+                elif self.test_type == 'static':
+                    row_list = [str(int(rows.CUST_NO-1)), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(rows.READYTIME), 
+                            str(rows.DUETIME), str(rows.SERVICETIME), str(0.0), str(rows.YCOORD), str(rows.XCOORD)]
+
+                self.node_list.append(row_list)
+
 
         all_nodes = list(
             Node(int(item[0]), float(item[1]), float(item[2]), float(item[3]), float(item[4]), float(item[5]),
@@ -145,11 +180,13 @@ class VrptwGraph:
 
     # MOD: New method to calculate Haversine distance (retrieved from Preprocessing). An asymmetric matrix is generated,
     # by this, a location change can be taken into account
+
+
     def calculate_dur_r(self, node_a, node_b, orientation):
         if orientation == 'ij':
-            return PreProcessing.haversine(node_b.x, node_b.y, node_a.x_end, node_a.y_end) * self.minutes_per_km
+            return self.haversine(node_b.x, node_b.y, node_a.x_end, node_a.y_end) * self.minutes_per_km
         elif orientation == 'ji':
-            return PreProcessing.haversine(node_a.x, node_a.y, node_b.x_end, node_b.y_end) * self.minutes_per_km
+            return self.haversine(node_a.x, node_a.y, node_b.x_end, node_b.y_end) * self.minutes_per_km
 
     def local_update_pheromone(self, start_ind, end_ind):
         self.pheromone_mat[start_ind][end_ind] = (1-self.rho) * self.pheromone_mat[start_ind][end_ind] + \
@@ -213,10 +250,17 @@ class VrptwGraph:
                 wait_time = max(self.all_nodes[nearest_next_index].ready_time - current_time - dist, 0)
 
                 # MOD: Marlene
-                current_time += dist + wait_time
-                service_time = VrptwGraph.get_service_time(nearest_next_index, self.service_time_matrix, 
-                                                           current_time, self.order_ids)
-                current_time += service_time
+                if self.source == 'r':
+                    current_time += dist + wait_time
+                    service_time = VrptwGraph.get_service_time(nearest_next_index, self.service_time_matrix, 
+                                                            current_time, self.order_ids)
+                    current_time += service_time
+                    if self.opt_time:
+                        travel_time = current_time
+                elif self.source == 't':
+                    service_time = self.all_nodes[nearest_next_index].service_time
+                    current_time += dist + wait_time + service_time
+
                 index_to_visit.remove(nearest_next_index)
 
                 travel_distance += self.node_dist_mat[current_index][nearest_next_index]
@@ -226,10 +270,15 @@ class VrptwGraph:
         # 最后要回到depot
         # And finally, back to the depot.
         travel_distance += self.node_dist_mat[current_index][0]
+        if self.opt_time:
+            travel_time += self.node_dist_mat[current_index][0]
         travel_path.append(0)
 
         vehicle_num = travel_path.count(0)-1
-        return travel_path, travel_distance, vehicle_num
+        if self.opt_time:
+            return travel_path, travel_time, vehicle_num
+        elif not self.opt_time:
+            return travel_path, travel_distance, vehicle_num
 
     def _cal_nearest_next_index(self, index_to_visit, current_index, current_load, current_time):
         '''
@@ -247,9 +296,13 @@ class VrptwGraph:
             wait_time = max(self.all_nodes[next_index].ready_time - current_time - dist, 0)
 
             # MOD: Marlene
-            temp_current_time = current_time + dist + wait_time
-            service_time = VrptwGraph.get_service_time(next_index, self.service_time_matrix, temp_current_time,
-                                                       self.order_ids)
+            if self.source == 't':
+                service_time = self.all_nodes[next_index].service_time
+            elif self.source == 'r':
+                temp_current_time = current_time + dist + wait_time
+                service_time = VrptwGraph.get_service_time(next_index, self.service_time_matrix, temp_current_time,
+                                                        self.order_ids)
+
             
             # 检查访问某一个旅客之后，能否回到服务店
             # Checking to see if you can return to the depot after visiting a particular customer.

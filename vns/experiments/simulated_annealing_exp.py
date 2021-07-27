@@ -2,13 +2,13 @@ import sys
 import os
 import numpy as np
 import pandas as pd
-from src.algorithm.SavingsAlgorithm import SavingsAlgorithm
-from src.algorithm.improved_vns import run_vns, create_planning_df, total_cost
-from src.helpers.DistanceMatrix import DistanceMatrix
-import src.config.vns_config as cfg
+from vns.src.algorithm.SavingsAlgorithm import SavingsAlgorithm
+from vns.src.algorithm.improved_vns import run_vns, create_planning_df, total_cost
+from vns.src.helpers.DistanceMatrix import DistanceMatrix
+import vns.src.config.vns_config as cfg
 from copy import deepcopy
-from src.visualizations.TourPlanVisualizer import TourPlanVisualizer
-from src.visualizations.TourVisualizer import TourVisualizer
+from vns.src.visualizations.TourPlanVisualizer import TourPlanVisualizer
+from vns.src.visualizations.TourVisualizer import TourVisualizer
 from pathlib import Path
 import matplotlib.pyplot as plt
 

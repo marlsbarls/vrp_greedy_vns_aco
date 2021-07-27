@@ -10,6 +10,10 @@ class SavingsAlgorithm:
         self.travel_time_matrix = travel_time_matrix
         self.service_time_matrix = service_time_matrix
 
+        # consider temporal and spaical distance
+        # self.consider_time = True  
+        self.consider_time = False 
+
     @staticmethod
     def time_checker(tour, current_order_df, travel_time_matrix, service_time_matrix, ready_time, due_time, time=0):
         counter = 0
@@ -97,12 +101,29 @@ class SavingsAlgorithm:
         for order_i in order_ids:
             for order_j in order_ids:
                 if ((order_i != order_j) and (order_i != "order_0") and (order_j != "order_0")):
-                    saving = round(self.travel_time_matrix[order_i+":"+"order_0"] +
-                                   self.travel_time_matrix["order_0"+":"+order_j] - self.travel_time_matrix[order_i+":"+order_j])
                     i = current_order_df.loc[current_order_df['order_id']
                                              == order_i, 'CUST_NO'].values[0]
                     j = current_order_df.loc[current_order_df['order_id']
                                              == order_j, 'CUST_NO'].values[0]
+                    if not self.consider_time:
+                        saving = round(self.travel_time_matrix[order_i+":"+"order_0"] +
+                                   self.travel_time_matrix["order_0"+":"+order_j] - self.travel_time_matrix[order_i+":"+order_j])
+                    elif self.consider_time:
+                        # punishment if ready_time j > ready_time i
+                        space_distance = round(self.travel_time_matrix[order_i+":"+"order_0"] +
+                                   self.travel_time_matrix["order_0"+":"+order_j] - self.travel_time_matrix[order_i+":"+order_j])
+                        ready_time_i = current_order_df.loc[current_order_df['CUST_NO']
+                                             == i, 'READYTIME'].values[0]
+                        ready_time_j = current_order_df.loc[current_order_df['CUST_NO']
+                                             == j, 'READYTIME'].values[0]
+                        if ready_time_j <= ready_time_i:
+                            temp_distance = 0
+                        else:
+                            # temp_distance = ready_time_j - ready_time_i 
+                            temp_distance = ready_time_i - ready_time_j  
+
+                        saving = space_distance + temp_distance
+
                     saving_list.append([i, j, saving])
 
         np.asarray(saving_list)

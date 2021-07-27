@@ -1,14 +1,14 @@
 import pandas as pd
 import geopandas
 import os
-from src.helpers.RangeFinder import RangeFinder
-import src.config.preprocessing_config as cfg
+from vns.src.helpers.RangeFinder import RangeFinder
+import vns.src.config.preprocessing_config as cfg
 import random
 import numpy as np
 import json
-from src.helpers.DistanceMatrix import DistanceMatrix
+from vns.src.helpers.DistanceMatrix import DistanceMatrix
 from math import radians, cos, sin, asin, sqrt
-from src.traffic_data.TrafficInterface_Reduced import TrafficInterface_Reduced
+from vns.src.traffic_data.TrafficInterface_Reduced import TrafficInterface_Reduced
 from pathlib import Path
 
 
@@ -17,13 +17,13 @@ class Preprocessing:
         self.base_dir = base_dir
         self.file_name = file_name
         self.target_folder = kwargs["target_folder"] if "target_folder" in kwargs else os.path.join(
-            self.base_dir, "data", "results_preprocessing")
+            self.base_dir, "results", "data_preparation",)
         Path(self.target_folder).mkdir(parents=True, exist_ok=True)
         self.config_string = kwargs["charge_avail_config_string"] if "charge_avail_config_string" in kwargs else ""
         if("charge_avail_config" in kwargs):
             cfg.dynamic_tasks["stationary_charge"]["availability"] = kwargs["charge_avail_config"]
         self.source_file_path = os.path.join(
-            self.base_dir, "data", "results_data_preparation", file_name + ".csv")
+            self.base_dir, "results", "data_preparation", file_name + ".csv")
         self.service_times_target_file_path = os.path.join(
             self.target_folder, file_name + self.config_string + "_service_times.txt")
         self.travel_times_target_file_path = os.path.join(
@@ -44,17 +44,17 @@ class Preprocessing:
     def extract_required_pois(self):
         ''' construct location data frames'''
         charge_df = pd.read_csv(os.path.join(
-            self.base_dir, "data", "locations", cfg.dynamic_tasks["stationary_charge"]["loc_file"]))
+            self.base_dir, "input_data", "data_preparation", "locations", cfg.dynamic_tasks["stationary_charge"]["loc_file"]))
         charge_gdf = geopandas.GeoDataFrame(charge_df, geometry=geopandas.points_from_xy(
             charge_df.longitude, charge_df.latitude))
 
         refuel_df = pd.read_csv(os.path.join(
-            self.base_dir, "data", "locations", cfg.dynamic_tasks["refuel"]["loc_file"]))
+            self.base_dir, "input_data", "data_preparation", "locations", cfg.dynamic_tasks["refuel"]["loc_file"]))
         refuel_gdf = geopandas.GeoDataFrame(
             refuel_df, geometry=geopandas.points_from_xy(refuel_df.longitude, refuel_df.latitude))
 
         wash_df = pd.read_csv(os.path.join(
-            self.base_dir, "data", "locations", cfg.dynamic_tasks["car_wash"]["loc_file"]))
+            self.base_dir, "input_data", "data_preparation", "locations", cfg.dynamic_tasks["car_wash"]["loc_file"]))
         wash_gdf = geopandas.GeoDataFrame(
             wash_df, geometry=geopandas.points_from_xy(wash_df.longitude, wash_df.latitude))
 

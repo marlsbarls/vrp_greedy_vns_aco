@@ -29,7 +29,7 @@ class TourPlanVisualizer:
                 self.base_dir, "data", "results_optimization", file, "tour_plans", "schedule_" + file + ".html")
 
     def _get_html_template(self):
-        html_file = open(os.path.join(self.base_dir, "data",
+        html_file = open(os.path.join(self.base_dir, "vns", "data",
                                       "misc", "schedule_template.html"), "r")
         content = html_file.read()
         html_file.close()

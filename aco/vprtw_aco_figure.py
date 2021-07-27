@@ -120,7 +120,7 @@ class VrptwAcoFigure:
         # 先绘制出各个结点
         # Plot the nodes first.
         self._draw_point()
-        self.figure.show()
+        #self.figure.show()
 
         # 从队列中读取新的path，进行绘制
         # Read the new path from the queue and draw it.

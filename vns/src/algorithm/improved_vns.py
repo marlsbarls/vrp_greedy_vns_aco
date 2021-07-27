@@ -93,6 +93,19 @@ def total_cost(tours, travel_time, service_time, ready_time, order_ids):
         total_cost += tour_cost
     return total_cost
 
+def cal_total_time(tours, travel_time, service_time, ready_time, order_ids):
+    total_time = 0
+    for tour in tours:
+        tour_time = 0
+        for i in range(len(tour) - 1):
+            traffic_phase = "off_peak" if tour_time < prep_cfg.traffic_times["phase_transition"][
+                "from_shift_start"] else "phase_transition" if tour_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
+            tour_time += max(service_time[order_ids[tour[i]]+":" +
+                                          traffic_phase] if order_ids[tour[i]] != "order_0" else 0 + travel_time[tour[i]][tour[i + 1]], ready_time[tour[i+1]]-tour_time)
+            #tour_time += travel_time[tour[i]][tour[i + 1]]
+        total_time += tour_time
+    return total_time
+
 
 def total_distance(tours, travel_time_matrix):
     total_distance = 0
@@ -828,7 +841,7 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, is_
     readytime = all_order_df['READYTIME'].to_numpy()
     duetime = all_order_df['DUETIME'].to_numpy()
     servicetime = DistanceMatrix.load_file(os.path.join(
-        dir_name, 'data', 'results_preprocessing', file + '_service_times'))
+        dir_name, 'input_data', 'surve_mobility', file + '_service_times'))
     order_ids = all_order_df['order_id'].values.tolist()
     xcoor_end = all_order_df['XCOORD_END'].to_numpy()
     ycoor_end = all_order_df['YCOORD_END'].to_numpy()
@@ -869,7 +882,7 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, is_
     # Output creation
     if(not is_exp):
         target_folder = os.path.join(
-            dir_name, "data", "results_optimization", file)
+            dir_name, "results", "vns", "surve_mobility", file)
         Path(target_folder).mkdir(parents=True, exist_ok=True)
         outputfile = open(os.path.join(
             target_folder, 'output.txt'), 'w')
@@ -990,12 +1003,18 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, is_
     plt.legend()
 
     if(is_exp):
+        target_folder = os.path.join(
+            dir_name, "results", "vns", "surve_mobility", "experiments", file, exp_params["test_name"], "convergence")
+        Path(target_folder).mkdir(parents=True, exist_ok=True)
         plt_path = f"exp_id_{exp_params['exp_id']}_convergence"
-        plt.savefig("%s/experiments/results/%s/%s/convergence/%s.png" %
-                    (dir_name, file, exp_params["test_name"], plt_path))
+        plt.savefig("{}/results/vns/surve_mobility/experiments/{}/{}/convergence/{}.png".format(
+            dir_name, file, exp_params["test_name"], plt_path),format='png')
     else:
+        target_folder = os.path.join(
+            dir_name, "results", "vns", "surve_mobility", file)
+        Path(target_folder).mkdir(parents=True, exist_ok=True)
         plt_path = f"convergence_total"
-        plt.savefig("%s/data/results_optimization/%s/visualization/%s.png" %
+        plt.savefig("%s/results/vns/surve_mobility/%s/visualization/%s.png" %
                     (dir_name, file, plt_path))
 
     plt.close()
@@ -1014,12 +1033,20 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, is_
     plt.legend()
 
     if(is_exp):
+        target_folder = os.path.join(
+            dir_name, "results", "vns", "surve_mobility", "experiments", file, exp_params["test_name"], "convergence")
+        Path(target_folder).mkdir(parents=True, exist_ok=True)
         plt_path = f"exp_id_{exp_params['exp_id']}_sim_annealing"
-        plt.savefig("%s/experiments/results/%s/%s/convergence/%s.png" %
-                    (dir_name, file, exp_params["test_name"], plt_path))
+        plt.savefig("{}/results/vns/surve_mobility/experiments/{}/{}/convergence/{}.png".format(
+            dir_name, file, exp_params["test_name"], plt_path),format='png')
+        
+    
     else:
+        target_folder = os.path.join(
+            dir_name, "results", "vns", "surve_mobility", file)
+        Path(target_folder).mkdir(parents=True, exist_ok=True)
         plt_path = f"sim_annealing_total"
-        plt.savefig("%s/data/results_optimization/%s/visualization/%s.png" %
+        plt.savefig("%s/results/vns/surve_mobility/%s/visualization/%s.png" %
                     (dir_name, file, plt_path))
 
     plt.close()
@@ -1049,7 +1076,7 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, is_
     print("Idle time: ", return_idle_time)
 
     prepared_travel_time_matrix = DistanceMatrix.load_file(os.path.join(
-        dir_name, "data", "results_preprocessing", file + "_travel_times"))
+        dir_name, "input_data", "surve_mobility", file + "_travel_times"))
     planning_df = create_planning_df(
         Sub_tour_VNS, all_order_df, prepared_travel_time_matrix, servicetime, readytime, duetime, planning_df, interval)
 

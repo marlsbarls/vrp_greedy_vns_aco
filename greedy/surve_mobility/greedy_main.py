@@ -28,31 +28,10 @@ class Greedy:
         # pd.set_option("display.max_colwidth", 10000)
         dir_name = os.path.dirname(os.path.realpath('__file__'))
         file_names = self.test_files
-        # test_name = "dynamic_solution_retry"
-        # test_type = "dynamic"  # static or dynamic
-        # only relevant if testtype = static: validation or experimentation
-        # static_type = "experimentation"
 
         for file in file_names:
-            # test_name = test_name
-            # file_name = os.path.join(
-            #     dir_name, 'data', 'results_preprocessing', file + '_orders.csv')
-            
             file_name = os.path.join(
                         dir_name, 'input_data', self.source, 'orders', file + '_orders.csv')
-
-            # outputfile = open('output_chargery_%s.txt' % file, 'w')
-            # outputfile.write(f'File: {file}\n')
-
-            # Path(os.path.join(dir_name, 'results', "greedy", file, self.test_type,
-            #                     )).mkdir(parents=True, exist_ok=True)
-            # # Path(os.path.join(dir_name, 'vns', "experiments", "results", file,
-            # #                     test_name, "tour_plans")).mkdir(parents=True, exist_ok=True)
-            # # Path(os.path.join(dir_name, 'vns', "experiments", "results", file,
-            # #                     test_name, "tour_visuals")).mkdir(parents=True, exist_ok=True)
-            # result_df = pd.DataFrame(columns=['costs_per_driver', 'costs_per_hour',  'initial_cost', 'final_cost', 
-            #                                   'idle_time', 'tour_length', 'vehicle_number', 'runtime', 'total_iterations', 
-            #                                   'initial_tour', 'final_tour'])
 
             all_orders_df = pd.read_csv(file_name)
 
@@ -70,13 +49,9 @@ class Greedy:
             greedy = GreedyAlgorithm(self.test_type, self.source, all_orders_df, travel_time_matrix, travel_time_matrix_with_orderids, service_time_matrix)
             result_tuple = greedy.run_greedy()
 
-            # result_file_path = os.path.join(dir_name, '/results/', file, '_', self.test_type, '.txt' )
-            result_file_path = dir_name + '/results/greedy/' + file + '_' + self.test_type + '.txt' 
+            result_file_path = dir_name + '/results/greedy/surve_mobility/' + file + '_' + self.test_type + '.txt' 
             f = open(result_file_path, 'w')
             separator = '\n'
             f.write(separator.join(result_tuple))
             f.close()
-            
-
-
-        
+                            

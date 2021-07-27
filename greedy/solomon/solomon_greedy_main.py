@@ -32,20 +32,12 @@ class Greedy:
         # only relevant if testtype = static: validation or experimentation
         # static_type = "experimentation"
 
-        for file in file_names:
-            # test_name = test_name
-            # file_name = os.path.join(
-            #     dir_name, 'data', 'results_preprocessing', file + '_orders.csv')
-            
+        for file in file_names:           
             file_name = os.path.join(
                         dir_name, 'input_data', self.source, 'orders', file + '_orders.csv')
 
-            outputfile = open('output_chargery_%s.txt' % file, 'w')
-            outputfile.write(f'File: {file}\n')
-
             all_orders_df = pd.read_csv(file_name)
             all_orders_df['CUST_NO'] = all_orders_df['CUST_NO'].apply(lambda x: x - 1)
-
 
             print('')
             print(f'Current file: {file}')
@@ -62,8 +54,17 @@ class Greedy:
                         (xcoor[i] - xcoor[j]) ** 2 + (ycoor[i] - ycoor[j]) ** 2)
             
             service_times = all_orders_df['SERVICETIME'].to_numpy()
+            # capacity = all_orders_df['CAPACITY'][0]
 
 
             greedy = GreedyAlgorithm(self.test_type, self.source, all_orders_df, dist_matrix, service_times)
-            greedy.run_greedy()
+
+            result_tuple = greedy.run_greedy()
+
+            # result_file_path = os.path.join(dir_name, '/results/', file, '_', self.test_type, '.txt' )
+            result_file_path = dir_name + '/results/greedy/solomon/' + file + '_' + self.test_type + '.txt' 
+            f = open(result_file_path, 'w')
+            separator = '\n'
+            f.write(separator.join(result_tuple))
+            f.close()
         

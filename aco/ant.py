@@ -9,8 +9,8 @@ import vns.src.config.preprocessing_config as prep_cfg
 
 class Ant:
     # MOD: Arguments path handover and time slice passed and initialized
-    def __init__(self, path_handover, time_slice, service_time_matrix, 
-                 order_ids, graph: VrptwGraph, start_index=0):
+    def __init__(self, path_handover, time_slice, graph: VrptwGraph, source, service_time_matrix = None, 
+                 order_ids = None, start_index=0, opt_time=False):
         super()
         self.graph = graph
         self.current_index = start_index
@@ -22,10 +22,12 @@ class Ant:
         self.path_handover = path_handover
 
         # MOD: Marlene
-        self.service_time_matrix = service_time_matrix
-        self.order_ids = order_ids
-
-
+        self.source = source
+        if self.source == 'r':
+            self.service_time_matrix = service_time_matrix
+            self.order_ids = order_ids
+        self.opt_time = opt_time
+        
         # MOD: For index to visit, distinguish between time slice 0 and others
         if self.time_slice == 0:
             self.index_to_visit = []
@@ -48,6 +50,10 @@ class Ant:
 
             self.index_to_visit = ast.literal_eval(self.lines[0])
             self.committed_path = ast.literal_eval(self.lines[3])
+            # print('----------------')
+            # print('committed_path')
+            # print(self.committed_path)
+            # print('----------------')
             self.file.close()
             self.index_to_visit = [elem for elem in self.index_to_visit if elem != 0]
             index_to_visit1 = [elem for elem in self.index_to_visit if elem in self.committed_path]
@@ -58,6 +64,8 @@ class Ant:
         self.travel_path = [start_index]
         self.arrival_time = [0]
         self.total_travel_distance = 0
+
+        self.total_travel_time = 0
 
     def clear(self):
         self.travel_path.clear()
@@ -94,12 +102,19 @@ class Ant:
             # self.vehicle_travel_time += dist + max(
             #     self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0) + self.graph.all_nodes[
             #                                 next_index].service_time
-            self.vehicle_travel_time += dist + max(
-                self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0)
             
-            service_time = VrptwGraph.get_service_time(next_index, self.service_time_matrix, self.vehicle_travel_time, self.order_ids)
-            self.vehicle_travel_time += service_time
-            
+            if self.source == 'r':
+                self.vehicle_travel_time += dist + max(
+                    self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0)
+                service_time = VrptwGraph.get_service_time(next_index, self.service_time_matrix, self.vehicle_travel_time, self.order_ids)
+                self.vehicle_travel_time += service_time
+            elif self.source == 't':
+                self.vehicle_travel_time += dist + max(
+                self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0) + self.graph.all_nodes[
+                                            next_index].service_time
+
+            # MOD: Marlene
+            self.total_travel_time = self.vehicle_travel_time
 
             self.index_to_visit.remove(next_index)
 
@@ -125,8 +140,11 @@ class Ant:
         wait_time = max(self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0)
         
         # MOD: Marlene
-        current_time = self.vehicle_travel_time + dist + wait_time
-        service_time = VrptwGraph.get_service_time(next_index, self.service_time_matrix, current_time, self.order_ids)
+        if self.source == 'r':
+            current_time = self.vehicle_travel_time + dist + wait_time
+            service_time = VrptwGraph.get_service_time(next_index, self.service_time_matrix, current_time, self.order_ids)
+        if self.source == 't':
+            service_time = self.graph.all_nodes[next_index].service_time
 
         # 检查访问某一个旅客之后，能否回到服务店
         # Checking to see if you can return to the depot after visiting a particular customer.
@@ -226,6 +244,18 @@ class Ant:
             distance += graph.node_dist_mat[current_ind][next_ind]
             current_ind = next_ind
         return distance
+    
+    @staticmethod
+    def cal_total_travel_time(graph: VrptwGraph, travel_path, service_time_matrix, order_ids):
+        travel_time = 0
+        current_ind = travel_path[0]
+        for next_ind in travel_path[1:]:
+            dist = graph.node_dist_mat[current_ind][next_ind]
+            travel_time += dist + max(graph.all_nodes[next_ind].ready_time - travel_time - dist, 0)
+            service_time = VrptwGraph.get_service_time(next_ind, service_time_matrix, travel_time, order_ids)
+            travel_time += service_time
+            current_ind = next_ind
+        return travel_time
 
     def try_insert_on_path(self, node_id, stop_event: Event):
         """
@@ -239,7 +269,10 @@ class Ant:
         :return:
         """
         best_insert_index = None
-        best_distance = None
+        if not self.opt_time:
+            best_distance = None
+        elif self.opt_time:
+            best_time = None
 
         for insert_index in range(len(self.travel_path)):
 
@@ -264,7 +297,15 @@ class Ant:
 
             # check_ant从front_depot_index出发
             # check_ant from front_depot_index
-            check_ant = Ant(self.path_handover, self.time_slice, self.service_time_matrix, self.order_ids, self.graph, self.travel_path[front_depot_index])
+            
+            # MOD: Marlene
+            if self.source == 'r':
+                check_ant = Ant(path_handover=self.path_handover, time_slice=self.time_slice, graph=self.graph, 
+                                source=self.source, service_time_matrix=self.service_time_matrix, 
+                                order_ids=self.order_ids, start_index=self.travel_path[front_depot_index])
+            elif self.source == 't':
+                check_ant = Ant(path_handover=self.path_handover, time_slice=self.time_slice, graph=self.graph, 
+                                source=self.source, start_index=self.travel_path[front_depot_index])
 
             # 让check_ant 走过 path中下标从front_depot_index开始到insert_index-1的点
             # Have check_ant walk past the point in path where the index starts at
@@ -295,14 +336,25 @@ class Ant:
                         temp_front_index = self.travel_path[insert_index-1]
                         temp_back_index = self.travel_path[insert_index]
 
-                        check_ant_distance = self.total_travel_distance - self.graph.node_dist_mat[temp_front_index][
-                            temp_back_index] + self.graph.node_dist_mat[temp_front_index][node_id] + \
-                            self.graph.node_dist_mat[node_id][temp_back_index]
+                        if not self.opt_time:
+                            check_ant_distance = self.total_travel_distance - self.graph.node_dist_mat[temp_front_index][
+                                temp_back_index] + self.graph.node_dist_mat[temp_front_index][node_id] + \
+                                self.graph.node_dist_mat[node_id][temp_back_index]
 
-                        if best_distance is None or check_ant_distance < best_distance:
-                            best_distance = check_ant_distance
-                            best_insert_index = insert_index
-                        break
+                            if best_distance is None or check_ant_distance < best_distance:
+                                best_distance = check_ant_distance
+                                best_insert_index = insert_index
+                            break
+                        elif self.opt_time:
+                            check_ant_time= self.total_travel_time - self.graph.node_dist_mat[temp_front_index][
+                                temp_back_index] + self.graph.node_dist_mat[temp_front_index][node_id] + \
+                                self.graph.node_dist_mat[node_id][temp_back_index]
+
+                            if best_time is None or check_ant_time < best_time:
+                                best_time = check_ant_time
+                                best_insert_index = insert_index
+                            break
+
 
                 # 如果不可以回到depot，则返回上一层
                 # If you can't go back to depot, go back to the previous level.
@@ -356,12 +408,15 @@ class Ant:
         if self.index_to_visit_empty():
             print('[insertion_procedure]: success in insertion')
 
-        self.total_travel_distance = Ant.cal_total_travel_distance(self.graph, self.travel_path)
+        if not self.opt_time:
+            self.total_travel_distance = Ant.cal_total_travel_distance(self.graph, self.travel_path)
+        elif self.opt_time:
+            self.total_travel_time = Ant.cal_total_travel_time(self.graph, self.travel_path, self.service_time_matrix, self.order_ids)
 
     # MOD: path_handover and time_slice passed to use by check ant
     @staticmethod
     def local_search_once(graph: VrptwGraph, travel_path: list, travel_distance: float, i_start, stop_event: Event, path_handover, time_slice,
-                          service_time_matrix):
+                          source, service_time_matrix=None, order_ids=None, opt_time=False):
 
         # 找出path中所有的depot的位置
         # Find the location of all depots in the path.
@@ -401,7 +456,12 @@ class Ant:
                                 # 判断发生改变的route a是否是feasible的
                                 # Determine whether the changed route a is feasible or not.
                                 success_route_a = False
-                                check_ant = Ant(path_handover, time_slice, service_time_matrix, graph, new_path[depot_before_start_a])
+                                if source == 'r':
+                                    check_ant = Ant(path_handover=path_handover, time_slice=time_slice, graph=graph, 
+                                                    source=source, service_time_matrix=service_time_matrix, order_ids=order_ids,
+                                                     start_index=new_path[depot_before_start_a], opt_time=opt_time)
+                                elif source == 't':
+                                    check_ant = Ant(path_handover, time_slice, graph, source, start_index=new_path[depot_before_start_a])
                                 for ind in new_path[depot_before_start_a + 1:]:
                                     if check_ant.check_condition(ind):
                                         check_ant.move_to_next_index(ind)
@@ -417,7 +477,18 @@ class Ant:
                                 # 判断发生改变的route b是否是feasible的
                                 # Determine whether the changed route b is feasible or not.
                                 success_route_b = False
-                                check_ant = Ant(path_handover, time_slice, graph, new_path[depot_before_start_b])
+
+                                # MOD: Marlene
+                                if source == 'r':
+                                    check_ant = Ant(path_handover=path_handover, time_slice=time_slice, graph=graph, 
+                                    source=source, service_time_matrix=service_time_matrix, 
+                                    order_ids=order_ids, start_index=new_path[depot_before_start_b], opt_time=opt_time)
+                                elif source == 't':
+                                    check_ant = Ant(path_handover=path_handover, time_slice=time_slice, graph=graph, 
+                                    source=source, start_index=new_path[depot_before_start_b])
+
+                                #check_ant = Ant(path_handover, time_slice, graph, new_path[depot_before_start_b])
+
                                 for ind in new_path[depot_before_start_b + 1:]:
                                     if check_ant.check_condition(ind):
                                         check_ant.move_to_next_index(ind)
@@ -430,18 +501,32 @@ class Ant:
                                 del check_ant
 
                                 if success_route_a and success_route_b:
-                                    new_path_distance = Ant.cal_total_travel_distance(graph, new_path)
-                                    if new_path_distance < travel_distance:
-                                        # print('success to search')
+                                    if not opt_time:
+                                        new_path_distance = Ant.cal_total_travel_distance(graph, new_path)
+                                        if new_path_distance < travel_distance:
+                                            # print('success to search')
 
-                                        # 删除路径中连在一起的depot中的一个
-                                        # Deletes one of the concatenated depots in the path.
-                                        for temp_ind in range(1, len(new_path)):
-                                            if graph.all_nodes[new_path[temp_ind]].is_depot and graph.all_nodes[
-                                                    new_path[temp_ind - 1]].is_depot:
-                                                new_path.pop(temp_ind)
-                                                break
-                                        return new_path, new_path_distance, i
+                                            # 删除路径中连在一起的depot中的一个
+                                            # Deletes one of the concatenated depots in the path.
+                                            for temp_ind in range(1, len(new_path)):
+                                                if graph.all_nodes[new_path[temp_ind]].is_depot and graph.all_nodes[
+                                                        new_path[temp_ind - 1]].is_depot:
+                                                    new_path.pop(temp_ind)
+                                                    break
+                                            return new_path, new_path_distance, i
+                                    elif opt_time:
+                                        new_path_time = Ant.cal_total_travel_time(graph, new_path, service_time_matrix, order_ids)
+                                        if new_path_time < travel_distance:
+                                            # print('success to search')
+
+                                            # 删除路径中连在一起的depot中的一个
+                                            # Deletes one of the concatenated depots in the path.
+                                            for temp_ind in range(1, len(new_path)):
+                                                if graph.all_nodes[new_path[temp_ind]].is_depot and graph.all_nodes[
+                                                        new_path[temp_ind - 1]].is_depot:
+                                                    new_path.pop(temp_ind)
+                                                    break
+                                            return new_path, new_path_time, i
 
                                 else:
                                     new_path.clear()
@@ -455,20 +540,39 @@ class Ant:
         :return:
         """
         new_path = copy.deepcopy(self.travel_path)
-        new_path_distance = self.total_travel_distance
+        if self.opt_time:
+            new_path_time = self.total_travel_time
+        elif not self.opt_time:
+            new_path_distance = self.total_travel_distance
         times = 10
         count = 0
         i_start = 1
         while count < times:
-            temp_path, temp_distance, temp_i = Ant.local_search_once(self.graph, new_path, new_path_distance, i_start,
-                                                                     stop_event, self.path_handover, self.time_slice,
-                                                                     self.service_time_matrix)
+            if self.source == 'r':
+                if not self.opt_time:
+                    temp_path, temp_distance, temp_i = Ant.local_search_once(self.graph, new_path, new_path_distance, i_start,
+                                                                            stop_event, self.path_handover, self.time_slice,
+                                                                            self.source, self.service_time_matrix, self.order_ids)
+                elif self.opt_time:
+                    temp_path, temp_time, temp_i = Ant.local_search_once(self.graph, new_path, new_path_time, i_start,
+                                                        stop_event, self.path_handover, self.time_slice,
+                                                        self.source, self.service_time_matrix, self.order_ids)
+            elif self.source == 't':
+                temp_path, temp_distance, temp_i = Ant.local_search_once(self.graph, new_path, new_path_distance, i_start,
+                                                        stop_event, self.path_handover, self.time_slice,
+                                                        self.source)
+
             if temp_path is not None:
                 count += 1
 
-                del new_path, new_path_distance
-                new_path = temp_path
-                new_path_distance = temp_distance
+                if not self.opt_time:
+                    del new_path, new_path_distance
+                    new_path = temp_path
+                    new_path_distance = temp_distance
+                if self.opt_time:
+                    del new_path, new_path_time
+                    new_path = temp_path
+                    new_path_time = temp_time
 
                 # 设置i_start Set i_start
                 i_start = (i_start + 1) % (new_path.count(0)-1)
@@ -477,5 +581,9 @@ class Ant:
                 break
 
         self.travel_path = new_path
-        self.total_travel_distance = new_path_distance
-        print('[local_search_procedure]: local search finished', self.total_travel_distance)
+        if not self.opt_time:
+            self.total_travel_distance = new_path_distance
+            print('[local_search_procedure]: local search finished', self.total_travel_distance)
+        elif self.opt_time:
+            self.total_travel_time = new_path_time
+            print('[local_search_procedure]: local search finished', self.total_travel_time)

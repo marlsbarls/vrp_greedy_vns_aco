@@ -7,16 +7,18 @@ import vns.src.config.vns_config as cfg
 
 class UpdateProcess:
     def __init__(self, graph: VrptwGraph, path_handover, time_slice, interval_length, path_testfile, source,
-                 minutes_per_km, service_time_matrix, order_ids, test_type):
+                 minutes_per_km, test_type, service_time_matrix=None, order_ids=None, opt_time=False):
         # MOD: Marlene
-        self.service_time_matrix = service_time_matrix
-        self.order_ids = order_ids
+        self.source = source
+        if self.source == 'r':
+            self.service_time_matrix = service_time_matrix
+            self.order_ids = order_ids
         self.test_type = test_type
+        self.opt_time = opt_time
         
         self.graph = graph
         self.path_handover = path_handover
         self.path_testfile = path_testfile
-        self.source = source
         self.minutes_per_km = minutes_per_km
         self.time_slice = time_slice
         self.interval_length = interval_length
@@ -29,6 +31,8 @@ class UpdateProcess:
         self.current_best_path, self.current_best_distance, self.current_best_vehicle_num = self.get_current_best()
 
         self.committed_nodes = []
+
+
 
     # Create node list in required format and create distance matrix (adopted from original MACS)
     def create_from_file(self, file_path):
@@ -51,13 +55,21 @@ class UpdateProcess:
         vehicle_capacity = cfg.capacity
         order_df = pd.read_csv(file_path)
         for index, rows in order_df.iterrows():
-            if self.test_type == 'static':
-                row_list = [str(rows.CUST_NO), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(0), 
-                            str(rows.DUETIME), str(rows.SERVICETIME), str(0), str(rows.YCOORD_END), str(rows.XCOORD_END)]
-                node_list.append(row_list)
-            elif self.test_type == 'dynamic':
-                row_list = [str(rows.CUST_NO), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(rows.READYTIME), 
+            if self.source == 'r':
+                if self.test_type == 'dynamic':
+                    row_list = [str(rows.CUST_NO), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(rows.READYTIME), 
                             str(rows.DUETIME), str(rows.SERVICETIME), str(rows.READYTIME), str(rows.YCOORD_END), str(rows.XCOORD_END)]
+                elif self.test_type == 'static':
+                    row_list = [str(rows.CUST_NO), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(rows.READYTIME), 
+                            str(rows.DUETIME), str(rows.SERVICETIME), str(0.0), str(rows.YCOORD_END), str(rows.XCOORD_END)]
+                node_list.append(row_list)
+            elif self.source == 't':
+                if self.test_type == 'dynamic':
+                    row_list = [str(int(rows.CUST_NO-1)), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(rows.READYTIME), 
+                            str(rows.DUETIME), str(rows.SERVICETIME), str(rows.READYTIME), str(rows.YCOORD), str(rows.XCOORD)]
+                elif self.test_type == 'static':
+                    row_list = [str(int(rows.CUST_NO-1)), str(rows.YCOORD), str(rows.XCOORD),  str(rows.DEMAND), str(rows.READYTIME), 
+                            str(rows.DUETIME), str(rows.SERVICETIME), str(0.0), str(rows.YCOORD), str(rows.XCOORD)]
                 node_list.append(row_list)
 
         all_nodes_list = list(

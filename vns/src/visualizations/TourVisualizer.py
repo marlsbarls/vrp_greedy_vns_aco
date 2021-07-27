@@ -16,13 +16,13 @@ class TourVisualizer:
         self.source = 'r'
         self.base_dir = base_dir
         self.map_berlin = gpd.read_file(os.path.join(
-            self.base_dir, 'data', 'misc', 'berlin.shp'))
+            self.base_dir, 'vns', 'data', 'misc', 'berlin.shp'))
         self.figure = plt.figure(figsize=(20, 20))
         self.figure_ax = self.figure.add_subplot(1, 1, 1)
         self.figure_ax.set_facecolor('none')
         self.map_berlin.plot(ax=self.figure_ax, alpha=0.4, color='grey')
         self.df_all = pd.read_csv(os.path.join(
-            self.base_dir, 'data', 'results_preprocessing', file_name + '_orders.csv'))
+            self.base_dir, 'input_data', 'surve_mobility', 'orders', file_name + '_orders.csv'))
         self.df = self.df_all.copy()
         self.df.drop(self.df_all.index[0], inplace=True)
         self.df_depot = self.df_all.copy()
@@ -31,11 +31,11 @@ class TourVisualizer:
         self.file_name = file_name
         if(is_exp):
             self.folder_name_result = os.path.join(
-                self.base_dir, 'experiments', 'results', file_name, exp_params["test_name"], "tour_visuals", str(exp_params["exp_id"]) if "exp_id" in exp_params else "")
+                self.base_dir, "results", "vns", "surve_mobility", "experiments", file_name, exp_params["test_name"], "tour_visuals", str(exp_params["exp_id"]) if "exp_id" in exp_params else "")
             Path(self.folder_name_result).mkdir(parents=True, exist_ok=True)
         else:
             self.folder_name_result = os.path.join(
-                self.base_dir, 'data', 'results_optimization', file_name, 'visualisation')
+                self.base_dir, "results", "vns", "surve_mobility", file_name, 'visualisation')
         self.time_slice = time_slice
         #self.path_queue = tours
         self.tours = tours

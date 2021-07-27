@@ -31,8 +31,8 @@ class VNSSimulation():
             file_name = os.path.join(
                 dir_name, 'input_data', 'surve_mobility', 'orders', file + '_orders.csv')
 
-            outputfile = open('output_chargery_%s.txt' % file, 'w')
-            outputfile.write(f'File: {file}\n')
+            # outputfile = open('output_chargery_%s.txt' % file, 'w')
+            # outputfile.write(f'File: {file}\n')
 
             all_orders_df = pd.read_csv(file_name)
             order_ids = all_orders_df['order_id'].values.tolist()
@@ -44,9 +44,9 @@ class VNSSimulation():
             planning_df['SCHEDULED_TOUR'] = np.NaN
 
             travel_time_matrix = DistanceMatrix.load_file(os.path.join(
-                dir_name, 'vns', 'data', 'results_preprocessing', file + '_travel_times'))
+                dir_name, 'input_data', 'surve_mobility', file + '_travel_times'))
             service_time_matrix = DistanceMatrix.load_file(os.path.join(
-                dir_name, 'vns', 'data', 'results_preprocessing', file + '_service_times'))
+                dir_name,'input_data', 'surve_mobility', file + '_service_times'))
 
             time = 0
             savings = SavingsAlgorithm(
@@ -91,7 +91,7 @@ class VNSSimulation():
                                                 file, True, test_name=test_name, exp_id=exp_id)
                             tv.run()
                             result_df.to_csv(
-                                "%s/experiments/results/%s/%s/result.csv" % (dir_name, file, test_name))
+                                "%s/results/vns/surve_mobility/%s/%s/result.csv" % (dir_name, file, test_name))
                             exp_id += 1
 
                 elif(static_type == "validation"):
@@ -162,4 +162,3 @@ class VNSSimulation():
                         result_df.to_csv("%s/experiments/results/%s/%s/result.csv" %
                                         (dir_name, file, test_name))
 
-            outputfile.close()

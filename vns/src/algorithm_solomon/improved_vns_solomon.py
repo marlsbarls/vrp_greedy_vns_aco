@@ -769,8 +769,12 @@ def run_vns(file, ini_tour, all_order_df, capacity, visibility, is_exp, **exp_pa
     plt.legend()
 
     if(is_exp):
+        target_folder = os.path.join(
+                        dir_name, "results", "vns", "solomon", "experiments", file, 
+                        exp_params['test_name'], "convergence")
+        Path(target_folder).mkdir(parents=True, exist_ok=True)
         plt_path = f"exp_id_{exp_params['exp_id']}_convergence_total"
-        plt.savefig("%s/experiments/solomon/%s/%s/convergence/%s.png" %
+        plt.savefig("%s/results/vns/solomon/experiments/%s/%s/convergence/%s.png" %
                     # (dir_name, file, exp_params['test_name'], plt_path))
                     (dir_name, file, exp_params['test_name'], plt_path))
     else:
