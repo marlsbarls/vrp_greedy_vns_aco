@@ -21,7 +21,7 @@ import os
 # MOD: Arguments source, path_handover, path_map, folder_name_result, alpha and time_slice passed from execution file
 class MultipleAntColonySystem:
     def __init__(self, graph: VrptwGraph, source, path_handover, path_map, folder_name_result, service_time_matrix=None, order_ids=None, ants_num=10, alpha=1,
-                 beta=1, q0=0.1, time_slice=0, whether_or_not_to_show_figure=True, opt_time=False):
+                 beta=1, q0=0.1, time_slice=0, whether_or_not_to_show_figure=True, opt_time=False, min_per_km=1):
         super()
         # graph 结点的位置、服务时间信息 Location of nodes, service hours information
         self.graph = graph
@@ -43,6 +43,7 @@ class MultipleAntColonySystem:
             self.best_path_travel_time = None
         self.best_path = None
         self.best_vehicle_num = None
+        self.min_per_km = min_per_km
 
         self.whether_or_not_to_show_figure = whether_or_not_to_show_figure
 
@@ -493,22 +494,45 @@ class MultipleAntColonySystem:
 
         return
     
-    def total_cost(self, tours, travel_time, service_time, order_ids):
+    # def total_cost_original(self, tours, travel_time_mat, service_time, order_ids):
+    #     total_cost = 0
+    #     for tour in tours:
+    #         tour_time = 0
+    #         for i in range(len(tour) - 1):
+    #             traffic_phase = "off_peak" if tour_time < prep_cfg.traffic_times["phase_transition"][
+    #             "from_shift_start"] else "phase_transition" if tour_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
+    #             tour_time += max(service_time[order_ids[tour[i]]+":" +
+    #                                         traffic_phase] if order_ids[tour[i]] != "order_0" else 0 
+    #                                         + travel_time_mat[tour[i]][tour[i + 1]], self.graph.all_nodes[tour[i+1]].ready_time-tour_time)
+    #         tour_cost = (tour_time*cfg.cost_per_minute) + \
+    #             cfg.cost_per_driver
+    #         total_cost += tour_cost
+    #     return total_cost
+
+    def total_cost_vns(self, tours, travel_time_mat, service_time, order_ids):
         total_cost = 0
         for tour in tours:
-            tour_time = 0
+            current_time = 0
+            travel_time = 0
             for i in range(len(tour) - 1):
-                traffic_phase = "off_peak" if tour_time < prep_cfg.traffic_times["phase_transition"][
-                    "from_shift_start"] else "phase_transition" if tour_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
-                tour_time += max(service_time[order_ids[tour[i]]+":" +
-                                            traffic_phase] if order_ids[tour[i]] != "order_0" else 0 
-                                            + travel_time[tour[i]][tour[i + 1]], self.graph.all_nodes[tour[i+1]].ready_time-tour_time)
-            tour_cost = (tour_time*cfg.cost_per_minute) + \
+                traffic_phase = "off_peak" if current_time < prep_cfg.traffic_times["phase_transition"][
+                "from_shift_start"] else "phase_transition" if current_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
+                if i == 0:
+                    travel_time += travel_time_mat[tour[i]][tour[i + 1]]
+                    current_time += max(travel_time_mat[tour[i]][tour[i + 1]], self.graph.all_nodes[tour[i+1]].ready_time)
+                else:
+                    travel_time += max(service_time[order_ids[tour[i]]+":" +
+                                            traffic_phase] + travel_time_mat[tour[i]][tour[i + 1]], 
+                                            self.graph.all_nodes[tour[i+1]].ready_time-current_time)
+                    current_time += max(service_time[order_ids[tour[i]]+":" +
+                                            traffic_phase] + travel_time_mat[tour[i]][tour[i + 1]], 
+                                            self.graph.all_nodes[tour[i+1]].ready_time-current_time)
+            tour_cost = (travel_time*cfg.cost_per_minute) + \
                 cfg.cost_per_driver
             total_cost += tour_cost
         return total_cost
 
-    def _calculate_costs(self):
+    def _calculate_costs_vns(self):
         # adjust tour format to vns 
         sub_tours = [[0,0]] * self.best_vehicle_num
         current_tour = 0
@@ -521,9 +545,54 @@ class MultipleAntColonySystem:
             counter += 1
         
         # calculate total costs
-        total_costs = self.total_cost(sub_tours, self.graph.node_dist_mat, self.service_time_matrix, self.order_ids)
+        # total_costs = self.total_cost_original(sub_tours, self.graph.node_dist_mat, self.service_time_matrix, self.order_ids)
+        total_cost_exp, list_dist = self.total_cost_vns(sub_tours, self.graph.node_dist_mat, self.service_time_matrix, self.order_ids)
         
-        return total_costs
+        return total_cost_exp, list_dist
+
+    def _calculate_costs_new(self):
+        total_cost = 0
+        # calculate travel time
+        travel_time = 0
+        current_time = 0
+        vehicle_num = 0
+        dist_dict = {}
+        # test_dict = {}
+        # test_path = []
+        for i in range(0, len(self.best_path)-1):
+            # if self.best_path[i] == 0:
+            #     if vehicle_num == 9:
+            #         print('')
+            if self.best_path[i] == 0 and i != 0:
+                dist_dict[vehicle_num] = travel_time
+                # test_dict[vehicle_num] = test_path
+                current_time = 0
+                vehicle_num += 1
+                travel_time = 0
+                # test_path = []
+            dist = self.graph.node_dist_mat[self.best_path[i]][self.best_path[i+1]]*self.min_per_km
+            # no wait time if depot 
+            if self.best_path[i] != 0:
+                wait_time = max(self.graph.all_nodes[self.best_path[i+1]].ready_time - current_time - dist, 0)
+                current_time += dist + wait_time
+            else:
+                wait_time = 0
+                current_time = max(self.graph.all_nodes[self.best_path[i+1]].ready_time, dist)
+
+            service_time = VrptwGraph.get_service_time(self.best_path[i+1], self.service_time_matrix, 
+                                                            current_time, self.order_ids)
+            current_time += service_time
+            travel_time += dist + wait_time + service_time
+            
+        dist_dict[vehicle_num] = travel_time
+        num_drivers = len(dist_dict) 
+
+        total_travel_time = sum(dist_dict.values())
+
+        total_cost = total_travel_time*cfg.cost_per_minute + num_drivers*cfg.cost_per_driver
+
+        return total_cost
+
 
     # MOD: Argument total_given_time added
     def _multiple_ant_colony_system(self, path_queue_for_figure: MPQueue, total_given_time, file_to_write_path=None):
@@ -562,6 +631,9 @@ class MultipleAntColonySystem:
             if self.opt_time:
                 self.best_path, self.best_path_travel_time, self.best_vehicle_num = self.graph.nearest_neighbor_heuristic()
 
+            # test_cost = self.total_cost_exp(self.best_path, self.graph.node_dist_mat, self.service_time_matrix, self.order_ids)
+            # test_cost, cost_list = self._calculate_costs()
+            # print('')
 
         else:
             f = open(self.path_handover, 'r')
@@ -672,7 +744,9 @@ class MultipleAntColonySystem:
                     self.print_and_write_in_file(file_to_write, self.best_path)
 
                     # MOD: Marlene
-                    total_cost = self._calculate_costs()
+                    
+                    # total_cost_exp, list_new = self._calculate_costs()
+                    total_cost = self._calculate_costs_new()
                     if not self.opt_time:
                         travel_time = Ant.cal_total_travel_time(self.graph, self.best_path, self.service_time_matrix, self.order_ids)
                         self.print_and_write_in_file(file_to_write, 'best path distance is %f, best vehicle_num is %d' % (self.best_path_distance, self.best_vehicle_num))
@@ -690,7 +764,7 @@ class MultipleAntColonySystem:
                                         str([]))
                         result_tuple_costs = ('path: '+str(self.best_path), 'distance: '+str(distance), 
                                               'vehicle_num: '+str(self.best_vehicle_num), 'costs: '+str(total_cost), 
-                                              'travel time: '+str(self.best_path_travel_time),  'travel_time from func: '+str(travel_time)+str([]))
+                                              'travel time: '+str(self.best_path_travel_time),  'travel_time from func: '+str(travel_time), str([]))
                     # MOD: Save current best results to file and copy to handover file
 
                     f = open(self.path_handover, 'w')

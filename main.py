@@ -40,8 +40,8 @@ load_dotenv(os.path.join(BASE_DIR))
 
 
 # test type: static or dynamic
-# test_type = 'dynamic'
-test_type = 'static'
+test_type = 'dynamic'
+# test_type = 'static'
 
 # source: solomon or surve_mobility
 source = 'surve_mobility'
@@ -55,9 +55,9 @@ if test_type != 'dynamic' and test_type != 'static':
 # test files surve_mobility
 if source == 'surve_mobility':
     # test_files = ['2020-07-07', '2020-07-08']
-    # test_files = ['2020-07-07']
+    test_files = ['2020-07-07']
     # test_files = ['2020-07-08']
-    test_files = ['2020-08-15']
+    # test_files = ['2020-08-15']
     # test_files = ['2020-08-14']
 
     # # run greedy

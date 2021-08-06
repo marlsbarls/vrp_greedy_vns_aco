@@ -197,7 +197,7 @@ class GreedyAlgorithm:
             
             
             planning_df = create_planning_df(Sub_tour, self.all_orders_df, self.travel_time_with_orderids, self.service_time_matrix, self.readytime, self.duetime)
-
+        
         return Sub_tour, tour_capacity_reached, visited, tour, planning_df, current_order
 
     def run_greedy(self):

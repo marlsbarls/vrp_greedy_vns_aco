@@ -10,7 +10,7 @@ import vns.src.config.preprocessing_config as prep_cfg
 class Ant:
     # MOD: Arguments path handover and time slice passed and initialized
     def __init__(self, path_handover, time_slice, graph: VrptwGraph, source, service_time_matrix = None, 
-                 order_ids = None, start_index=0, opt_time=False):
+                 order_ids = None, start_index=0, opt_time=False, min_per_km=1):
         super()
         self.graph = graph
         self.current_index = start_index
@@ -27,6 +27,7 @@ class Ant:
             self.service_time_matrix = service_time_matrix
             self.order_ids = order_ids
         self.opt_time = opt_time
+        self.min_per_km = min_per_km
         
         # MOD: For index to visit, distinguish between time slice 0 and others
         if self.time_slice == 0:
@@ -79,6 +80,7 @@ class Ant:
 
         dist = self.graph.node_dist_mat[self.current_index][next_index]
         self.arrival_time.append(self.vehicle_travel_time + dist)
+        self.total_travel_time += dist*self.min_per_km
 
         if self.graph.all_nodes[next_index].is_depot:
             # 如果一下个位置为服务器点，则要将车辆负载等清空
@@ -94,6 +96,7 @@ class Ant:
             if self.graph.all_nodes[self.current_index].is_depot and self.graph.all_nodes[next_index].available_time != 0:
                 self.vehicle_load += self.graph.all_nodes[next_index].available_time
                 self.vehicle_travel_time += self.graph.all_nodes[next_index].available_time
+                self.total_travel_time += self.graph.all_nodes[next_index].available_time
 
             self.vehicle_load += self.graph.all_nodes[next_index].demand + self.graph.node_dist_mat[self.current_index][next_index]
 
@@ -108,15 +111,15 @@ class Ant:
                     self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0)
                 service_time = VrptwGraph.get_service_time(next_index, self.service_time_matrix, self.vehicle_travel_time, self.order_ids)
                 self.vehicle_travel_time += service_time
+                self.total_travel_time += service_time
             elif self.source == 't':
                 self.vehicle_travel_time += dist + max(
                 self.graph.all_nodes[next_index].ready_time - self.vehicle_travel_time - dist, 0) + self.graph.all_nodes[
                                             next_index].service_time
 
-            # MOD: Marlene
-            self.total_travel_time = self.vehicle_travel_time
 
             self.index_to_visit.remove(next_index)
+            # self.total_travel_time += self.vehicle_travel_time
 
         self.current_index = next_index
 

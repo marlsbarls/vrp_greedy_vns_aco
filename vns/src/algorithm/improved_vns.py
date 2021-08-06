@@ -78,17 +78,40 @@ def get_customer_size(current_tour):
 #     return total_cost
 
 
-def total_cost(tours, travel_time, service_time, ready_time, order_ids):
+# def total_cost(tours, travel_time, service_time, ready_time, order_ids):
+#     total_cost = 0
+#     for tour in tours:
+#         tour_time = 0
+#         for i in range(len(tour) - 1):
+#             traffic_phase = "off_peak" if tour_time < prep_cfg.traffic_times["phase_transition"][
+#                 "from_shift_start"] else "phase_transition" if tour_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
+#             tour_time += max(service_time[order_ids[tour[i]]+":" +
+#                                           traffic_phase] if order_ids[tour[i]] != "order_0" else 0 + travel_time[tour[i]][tour[i + 1]], ready_time[tour[i+1]]-tour_time)
+#             # tour_time += travel_time[tour[i]][tour[i + 1]]
+#         tour_cost = (tour_time*cfg.cost_per_minute) + \
+#             cfg.cost_per_driver
+#         total_cost += tour_cost
+#     return total_cost
+
+def total_cost(tours, travel_time_mat, service_time, ready_time, order_ids):
     total_cost = 0
     for tour in tours:
-        tour_time = 0
+        current_time = 0
+        travel_time = 0
         for i in range(len(tour) - 1):
-            traffic_phase = "off_peak" if tour_time < prep_cfg.traffic_times["phase_transition"][
-                "from_shift_start"] else "phase_transition" if tour_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
-            tour_time += max(service_time[order_ids[tour[i]]+":" +
-                                          traffic_phase] if order_ids[tour[i]] != "order_0" else 0 + travel_time[tour[i]][tour[i + 1]], ready_time[tour[i+1]]-tour_time)
-            #tour_time += travel_time[tour[i]][tour[i + 1]]
-        tour_cost = (tour_time*cfg.cost_per_minute) + \
+            traffic_phase = "off_peak" if current_time < prep_cfg.traffic_times["phase_transition"][
+            "from_shift_start"] else "phase_transition" if current_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
+            if i == 0:
+                travel_time += travel_time_mat[tour[i]][tour[i + 1]]
+                current_time += max(travel_time_mat[tour[i]][tour[i + 1]], ready_time[tour[i+1]])
+            else:
+                travel_time += max(service_time[order_ids[tour[i]]+":" +
+                                        traffic_phase] + travel_time_mat[tour[i]][tour[i + 1]], 
+                                        ready_time[tour[i+1]]-current_time)
+                current_time += max(service_time[order_ids[tour[i]]+":" +
+                                        traffic_phase] + travel_time_mat[tour[i]][tour[i + 1]], 
+                                        ready_time[tour[i+1]]-current_time)
+        tour_cost = (travel_time*cfg.cost_per_minute) + \
             cfg.cost_per_driver
         total_cost += tour_cost
     return total_cost

@@ -26,7 +26,7 @@ class Execution():
         self.beta = 1  # 2
         self.q0 = 0.9  # 0.5
         # self.total_given_time = 15 # original 
-        self.total_given_time = 480 
+        self.total_given_time = 15
         # self.show_figure = True
         self.show_figure = False
         self.folder_name_handover = 'aco/handover'
@@ -46,8 +46,9 @@ class Execution():
         
         # Mod: Marlene 
         # opt_time = True minimizes travel time instead of travel distance
-        # self.opt_time = True
+        # original = False
         self.opt_time = False
+        # self.opt_time = False
         if self.source == 't':
             self.opt_time = False
 
