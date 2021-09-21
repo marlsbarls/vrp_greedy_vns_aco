@@ -1,5 +1,6 @@
 import ast
 from aco.vrptw_base import VrptwGraph, Node
+from aco.ant import Ant
 import numpy as np
 import pandas as pd
 import vns.src.config.vns_config as cfg 
@@ -28,7 +29,11 @@ class UpdateProcess:
         self.all_nodes, self.all_nodes_num, self.node_dist_mat, self.vehicle_num, _,  = self.create_from_file(
             path_testfile)
 
-        self.current_best_path, self.current_best_distance, self.current_best_vehicle_num = self.get_current_best()
+        if not self.opt_time:
+            self.current_best_path, self.current_best_distance, self.current_best_vehicle_num = self.get_current_best()
+        if self.opt_time:
+            self.current_best_path, self.current_best_time, self.current_best_vehicle_num = self.get_current_best()
+
 
         self.committed_nodes = []
 
@@ -237,6 +242,10 @@ class UpdateProcess:
                 total_addition = False
                 ins_ind_list = self.insertion_idx()
 
+                # TODO: set self.current best distance to right value
+                if self.opt_time:
+                    self.current_best_distance = 0
+
                 for ins_ind in ins_ind_list:
                     total_travel_time = 0
                     total_distance = 0
@@ -281,7 +290,10 @@ class UpdateProcess:
                                         distance += self.node_dist_mat[i][following_idx]
 
                         if total_addition:
+                            # TODO: Check why travel_time doesn't match up
                             total_travel_time += travel_time
+                            total_travel_time = Ant.cal_total_travel_time(self.graph, self.current_best_path, 
+                                                                          self.service_time_matrix, self.order_ids)
                             total_distance += distance
 
                         else:
@@ -300,16 +312,62 @@ class UpdateProcess:
                     self.current_best_path.insert(best_ins_idx, node)
                     self.current_best_vehicle_num = self.current_best_path.count(0)-1
                     self.current_best_distance = best_distance
+                    self.current_best_time = best_total_travel_time
 
+    def _calculate_costs_new(self, min_per_km=1):
+        total_cost = 0
+        # calculate travel time
+        travel_time = 0
+        current_time = 0
+        vehicle_num = 0
+        dist_dict = {}
+        # test_dict = {}
+        # test_path = []
+        for i in range(0, len(self.current_best_path)-1):
+            # if self.best_path[i] == 0:
+            #     if vehicle_num == 9:
+            #         print('')
+            if self.current_best_path[i] == 0 and i != 0:
+                dist_dict[vehicle_num] = travel_time
+                # test_dict[vehicle_num] = test_path
+                current_time = 0
+                vehicle_num += 1
+                travel_time = 0
+                # test_path = []
+            dist = self.graph.node_dist_mat[self.current_best_path[i]][self.current_best_path[i+1]]*min_per_km
+            # no wait time if depot 
+            if self.current_best_path[i] != 0:
+                wait_time = max(self.graph.all_nodes[self.current_best_path[i+1]].ready_time - current_time - dist, 0)
+                current_time += dist + wait_time
+            else:
+                wait_time = 0
+                current_time = max(self.graph.all_nodes[self.current_best_path[i+1]].ready_time, dist)
+
+            service_time = VrptwGraph.get_service_time(self.current_best_path[i+1], self.service_time_matrix, 
+                                                            current_time, self.order_ids)
+            current_time += service_time
+            travel_time += dist + wait_time + service_time
+            
+        dist_dict[vehicle_num] = travel_time
+        num_drivers = len(dist_dict) 
+
+        total_travel_time = sum(dist_dict.values())
+
+        total_cost = total_travel_time*cfg.cost_per_minute + num_drivers*cfg.cost_per_driver
+
+        return total_cost
+    
     # Carry out insertion and print result to handover file
     def print_result_to_file(self):
         self.insertion()
 
-        # MOD: Marlene
-        cost = self.current_best_distance * cfg.cost_per_minute + self.current_best_vehicle_num + cfg.cost_per_driver
-
-        result_tuple = (str(self.current_best_path), str(self.current_best_distance), str(
-            self.current_best_vehicle_num), str(self.committed_nodes), str(cost))
+        cost = self._calculate_costs_new()
+        if not self.opt_time:
+            result_tuple = (str(self.current_best_path), str(self.current_best_distance), str(
+                self.current_best_vehicle_num), str(self.committed_nodes), str(cost))
+        elif self.opt_time:
+            result_tuple = (str(self.current_best_path), str(self.current_best_time), str(
+                self.current_best_vehicle_num), str(self.committed_nodes), str(cost))
         file = open(self.path_handover, 'w')
         separator = '\n'
         file.write(separator.join(result_tuple))

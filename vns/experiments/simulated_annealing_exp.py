@@ -11,6 +11,7 @@ from vns.src.visualizations.TourPlanVisualizer import TourPlanVisualizer
 from vns.src.visualizations.TourVisualizer import TourVisualizer
 from pathlib import Path
 import matplotlib.pyplot as plt
+from datetime import
 
 pd.set_option("display.max_colwidth", 10000)
 dir_name = os.path.dirname(os.path.realpath('__file__'))
@@ -61,6 +62,17 @@ for file in file_names:
                       test_name, "tour_plans")).mkdir(parents=True, exist_ok=True)
     Path(os.path.join(dir_name, "experiments", "results", file,
                       test_name, "tour_visuals")).mkdir(parents=True, exist_ok=True)
+    # today = date.today()
+    # date_today = today.strftime("%b-%d-%Y")
+    # target_folder_results = os.path.join(
+    # dir_name, "results", "vns", 'surve_mobility', file, test_type, date_today)
+
+    # Path(target_folder_results).mkdir(parents=True, exist_ok=True)
+    # Path(os.path.join(target_folder_results, "convergence")).mkdir(parents=True, exist_ok=True)
+    # Path(os.path.join(target_folder_results, "tour_plans")).mkdir(parents=True, exist_ok=True)
+    # Path(os.path.join(target_folder_results, "tour_visuals")).mkdir(parents=True, exist_ok=True)
+
+
     result_df = pd.DataFrame(columns=[
         'initial_temperature',  'initial_cost', 'final_cost', 'idle_time', 'tour_length', 'vehicle_number', 'runtime', 'total_iterations', 'last_improvement', 'operator_performance', 'initial_tour', 'final_tour'])
     current_order_df, planning_df, current_tour = savings.initialization(
@@ -101,7 +113,7 @@ for file in file_names:
 
     # Plot convergence per temperature
     plt.clf()
-    plt.figure(figsize=(20, 10))
+    plt.figure(figsize=(10, 10))
     for temp, convergence in convergence_per_temp.items():
         plt.plot(smoothen_convergence(convergence),
                  label="Initial Temp: %s" % (temp))

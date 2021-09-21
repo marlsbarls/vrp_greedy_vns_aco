@@ -5,8 +5,10 @@ import os
 from pathlib import Path
 import pandas as pd
 import time
+from datetime import date
 from aco.analysis_available_time import AnalysisAvailableTime
 from vns.src.helpers.DistanceMatrix import DistanceMatrix
+
 
 class Execution():
     def __init__(self, test_files, dynamic, data_type):
@@ -25,10 +27,12 @@ class Execution():
         self.alpha = 1  # new
         self.beta = 1  # 2
         self.q0 = 0.9  # 0.5
-        # self.total_given_time = 15 # original 
+        self.total_given_time = 15 # original
+        if self.dynamic == 'static': 
+            self.total_given_time = 480
         self.total_given_time = 15
         # self.show_figure = True
-        self.show_figure = False
+        self.show_figure = True
         self.folder_name_handover = 'aco/handover'
         self.file_name_handover = 'handover.txt'
 
@@ -37,9 +41,11 @@ class Execution():
         self.order_reception_end = '15:59:59'
         self.shift_end = '17:00:00'
         self.shift_length = 480  # 8 hours = 480
-        self.capacity = 120
+        self.capacity = 480
         self.interval_length = 15  # minutes
-        # self.interval_length = 1  # minutes
+        if self.dynamic == 'static':
+            self.interval_length = 480  # minutes
+        self.interval_length = 15  # minutes
         # self.minutes_per_km = 2
         self.minutes_per_km = 1
         self.vehicles = 25
@@ -47,7 +53,7 @@ class Execution():
         # Mod: Marlene 
         # opt_time = True minimizes travel time instead of travel distance
         # original = False
-        self.opt_time = False
+        self.opt_time = False 
         # self.opt_time = False
         if self.source == 't':
             self.opt_time = False
@@ -59,7 +65,7 @@ class Execution():
         # self.folder_name_additional_data = 'aco/additional_data'
         ###
 
-        self.folder_name_map = 'input_data_/data_preperation/berlin_maps'
+        self.folder_name_map = 'input_data/data_preparation/berlin_maps'
 
         self.file_name_hub_location = 'hub_location.csv'
         self.file_name_charging_station = 'charging_station_locations.csv'
@@ -114,8 +120,11 @@ class Execution():
                     all_orders_df = pd.read_csv(self.folder_name_testfile+'/'+file_name)
                     order_ids = all_orders_df['order_id'].values.tolist()
                 
+                
+                today = date.today()
+                date_today = today.strftime("%b-%d-%Y")
                 target_folder_results = os.path.join(
-                dir_name, "results", "aco", self.data_type, file_name.partition('_')[0], self.dynamic)
+                dir_name, "results", "aco", self.data_type, file_name.partition('_')[0], self.dynamic, date_today)
                 Path(target_folder_results).mkdir(parents=True, exist_ok=True)
                 folder_name_result = target_folder_results
 
@@ -125,7 +134,8 @@ class Execution():
 
 
                 path_handover = os.path.join(self.folder_name_handover, self.file_name_handover)
-                path_map = os.path.join(self.folder_name_map, self.file_name_map)
+                main_folder = os.path.dirname(os.path.realpath(__file__)).split('aco')[0]
+                path_map = os.path.join(main_folder, self.folder_name_map, self.file_name_map)
 
                 for i in range(0, intervals+1):
                     time_slice = i
@@ -147,6 +157,9 @@ class Execution():
                     macs.run_multiple_ant_colony_system(total_given_time=self.total_given_time)
 
                     if i == intervals:
+                        break
+                    # only execute one intervall when static
+                    if self.dynamic == 'static':
                         break
 
                     else:

@@ -55,8 +55,9 @@ if test_type != 'dynamic' and test_type != 'static':
 # test files surve_mobility
 if source == 'surve_mobility':
     # test_files = ['2020-07-07', '2020-07-08']
-    test_files = ['2020-07-07']
-    # test_files = ['2020-07-08']
+    # test_files = ['2020-08-15', '2020-08-14']
+    # test_files = ['2020-07-07']
+    test_files = ['2020-07-08']
     # test_files = ['2020-08-15']
     # test_files = ['2020-08-14']
 
@@ -64,14 +65,14 @@ if source == 'surve_mobility':
     # greedy = Surve_Greedy(test_files, test_type, source)
     # greedy.run_greedy()
 
-    # run aco
-    if __name__ == '__main__':
-        aco = Execution(test_files, test_type, source)
-        aco.run_macs()
+    # # run aco
+    # if __name__ == '__main__':
+    #     aco = Execution(test_files, test_type, source)
+    #     aco.run_macs()
 
-    # # run vns
-    # vns = VNSSimulation(test_files, test_type)
-    # vns.run_simulation()
+    # run vns
+    vns = VNSSimulation(test_files, test_type)
+    vns.run_simulation()
 
 
 if source == 'solomon':

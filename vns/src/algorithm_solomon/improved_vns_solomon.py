@@ -9,8 +9,9 @@ import vns.src.config.vns_config as cfg
 import math
 from math import radians, cos, sin, asin, sqrt
 import random as rd
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt 
 from pathlib import Path
+from datetime import date
 rd.seed(0)
 
 dir_name = os.path.dirname(os.path.realpath('__file__'))
@@ -590,7 +591,7 @@ def shaking(Input_tour, travel_time, service_time, ready_time, due_time, demand,
     return Sub_tour
 
 
-def run_vns(file, ini_tour, all_order_df, capacity, visibility, is_exp, **exp_params):
+def run_vns(file, ini_tour, all_order_df, capacity, visibility, result_path, is_exp, **exp_params):
     '''---------------------------------------------------------------
     Experiment section: Set parameters, if current run is an experiment
     ------------------------------------------------------------------'''
@@ -756,7 +757,7 @@ def run_vns(file, ini_tour, all_order_df, capacity, visibility, is_exp, **exp_pa
         print(Sub_tour_VNS)
 
     plt.clf()
-    plt.figure(figsize=(20, 10))
+    plt.figure(figsize=(10, 10))
     plt.plot(analysis_convergence_total, color='b', label='Global solution')
     plt.plot(analysis_convergence_shaking, color='g', label='Shaking solution')
     plt.plot(analysis_convergence_local, color='m',

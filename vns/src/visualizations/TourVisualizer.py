@@ -11,13 +11,14 @@ plt.ioff()
 
 
 class TourVisualizer:
-    def __init__(self, base_dir, tours, time_slice, file_name, is_exp, **exp_params):
+    def __init__(self, base_dir, output_path, tours, time_slice, file_name, is_exp, **exp_params):
 
         self.source = 'r'
         self.base_dir = base_dir
+        self.output_path = output_path
         self.map_berlin = gpd.read_file(os.path.join(
-            self.base_dir, 'vns', 'data', 'misc', 'berlin.shp'))
-        self.figure = plt.figure(figsize=(20, 20))
+            self.base_dir, "input_data", "misc", "berlin_maps",'berlin.shp'))
+        self.figure = plt.figure(figsize=(10, 10))
         self.figure_ax = self.figure.add_subplot(1, 1, 1)
         self.figure_ax.set_facecolor('none')
         self.map_berlin.plot(ax=self.figure_ax, alpha=0.4, color='grey')
@@ -27,15 +28,18 @@ class TourVisualizer:
         self.df.drop(self.df_all.index[0], inplace=True)
         self.df_depot = self.df_all.copy()
         self.df_depot.drop(self.df_all.index[1:], inplace=True)
-
         self.file_name = file_name
         if(is_exp):
+            # self.folder_name_result = os.path.join(
+            #     self.base_dir, "results", "vns", "surve_mobility", "experiments", file_name, exp_params["test_name"], "tour_visuals", str(exp_params["exp_id"]) if "exp_id" in exp_params else "")
             self.folder_name_result = os.path.join(
-                self.base_dir, "results", "vns", "surve_mobility", "experiments", file_name, exp_params["test_name"], "tour_visuals", str(exp_params["exp_id"]) if "exp_id" in exp_params else "")
+                self.output_path, "tour_visuals", str(exp_params["exp_id"]) if "exp_id" in exp_params else "")
             Path(self.folder_name_result).mkdir(parents=True, exist_ok=True)
         else:
+            # self.folder_name_result = os.path.join(
+            #     self.base_dir, "results", "vns", "surve_mobility", file_name, 'visualisation')
             self.folder_name_result = os.path.join(
-                self.base_dir, "results", "vns", "surve_mobility", file_name, 'visualisation')
+                self.output_path, 'tour_visuals')
         self.time_slice = time_slice
         #self.path_queue = tours
         self.tours = tours

@@ -118,6 +118,7 @@ class Ant:
                                             next_index].service_time
 
 
+            test = Ant.cal_total_travel_time(self.graph, self.travel_path, self.service_time_matrix, self.order_ids)
             self.index_to_visit.remove(next_index)
             # self.total_travel_time += self.vehicle_travel_time
 
@@ -248,17 +249,85 @@ class Ant:
             current_ind = next_ind
         return distance
     
+    ## updated travel time function (validated in vrptw_base)
     @staticmethod
-    def cal_total_travel_time(graph: VrptwGraph, travel_path, service_time_matrix, order_ids):
+    def cal_total_travel_time(graph: VrptwGraph, path, service_time_matrix, order_ids, minutes_per_km=1):
+        # travel_time = 0
+        # current_time = 0
+        # vehicle_num = 0
+        # dist_dict = {}
+        # # test_dict = {}
+        # # test_path = []
+        # for i in range(0, len(path)-1):
+        #     if path[i] == 0 and i != 0:
+        #         dist_dict[vehicle_num] = travel_time
+        #         # test_dict[vehicle_num] = test_path
+        #         current_time = 0
+        #         vehicle_num += 1
+        #         travel_time = 0
+        #         # test_path = []
+        #     dist = graph.node_dist_mat[path[i]][path[i+1]]*minutes_per_km
+        #     # no wait time if depot 
+        #     if path[i] != 0:
+        #         wait_time = max(graph.all_nodes[path[i+1]].ready_time - current_time - dist, 0)
+        #         current_time += dist + wait_time
+        #     else:
+        #         wait_time = 0
+        #         current_time = max(graph.all_nodes[path[i+1]].ready_time, dist)
+
+        #     service_time = VrptwGraph.get_service_time(path[i+1], service_time_matrix, 
+        #                                                     current_time, order_ids)
+        #     current_time += service_time
+        #     travel_time += dist + wait_time + service_time
+        #     # test_path.append(path[i])
+            
+        # dist_dict[vehicle_num] = travel_time
+        # # test_dict[vehicle_num] = test_path
+
+        # total_travel_time = sum(dist_dict.values())
+
+        # return total_travel_time
+
         travel_time = 0
-        current_ind = travel_path[0]
-        for next_ind in travel_path[1:]:
-            dist = graph.node_dist_mat[current_ind][next_ind]
-            travel_time += dist + max(graph.all_nodes[next_ind].ready_time - travel_time - dist, 0)
-            service_time = VrptwGraph.get_service_time(next_ind, service_time_matrix, travel_time, order_ids)
-            travel_time += service_time
-            current_ind = next_ind
-        return travel_time
+        current_time = 0
+        vehicle_num = 0
+        dist_dict = {}
+        # test_dict = {}
+        # test_path = []
+        for i in range(0, len(path)-1):
+            if path[i] == 0:
+                if vehicle_num == 9:
+                    print('')
+            if path[i] == 0 and i != 0:
+                dist_dict[vehicle_num] = travel_time
+                # test_dict[vehicle_num] = test_path
+                current_time = 0
+                vehicle_num += 1
+                travel_time = 0
+                # test_path = []
+            dist = graph.node_dist_mat[path[i]][path[i+1]]*minutes_per_km
+            # no wait time if depot 
+            if path[i] != 0:
+                wait_time = max(graph.all_nodes[path[i+1]].ready_time - current_time - dist, 0)
+                current_time += dist + wait_time
+            else:
+                wait_time = 0
+                current_time = max(graph.all_nodes[path[i+1]].ready_time, dist)
+
+            service_time = VrptwGraph.get_service_time(path[i+1], service_time_matrix, 
+                                                            current_time, order_ids)
+            current_time += service_time
+            travel_time += dist + wait_time + service_time
+            # test_path.append(path[i])
+            
+        dist_dict[vehicle_num] = travel_time
+        # test_dict[vehicle_num] = test_path
+
+        total_travel_time = sum(dist_dict.values())
+
+        return total_travel_time
+
+
 
     def try_insert_on_path(self, node_id, stop_event: Event):
         """

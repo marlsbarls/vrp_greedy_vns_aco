@@ -8,7 +8,7 @@ import copy
 
 
 class TourPlanVisualizer:
-    def __init__(self, base_dir, file, travel_time_matrix, planning_df, tours, cost, idle_time, is_exp, **exp_params):
+    def __init__(self, base_dir, file, output_path, travel_time_matrix, planning_df, tours, cost, idle_time, is_exp, **exp_params):
         self.tours = tours
         self.cost = cost
         self.idle_time = idle_time
@@ -17,20 +17,25 @@ class TourPlanVisualizer:
         self.base_dir = base_dir
         self.html_file = self._get_html_template()
         self.html_template = Template(self.html_file)
+        self.output_path = output_path
         if (is_exp):
+            # self.output_folder = os.path.join(
+            #     self.base_dir, "experiments", "results", file, exp_params["test_name"], "tour_plans", str(exp_params["exp_id"]) if "exp_id" in exp_params else "")
             self.output_folder = os.path.join(
-                self.base_dir, "experiments", "results", file, exp_params["test_name"], "tour_plans", str(exp_params["exp_id"]) if "exp_id" in exp_params else "")
+                self.output_path, "tour_plans", str(exp_params["exp_id"]) if "exp_id" in exp_params else "")
             Path(self.output_folder).mkdir(parents=True, exist_ok=True)
             self.output_file = os.path.join(self.output_folder, "schedule_" +
                                             str(exp_params["time"]) + ".html"
                                             )
         else:
             self.output_file = os.path.join(
-                self.base_dir, "data", "results_optimization", file, "tour_plans", "schedule_" + file + ".html")
+                self.output_path, "tour_plans", "schedule_" + file + ".html")
+            # self.output_file = os.path.join(
+            #     self.base_dir, "data", "results_optimization", file, "tour_plans", "schedule_" + file + ".html")
 
     def _get_html_template(self):
-        html_file = open(os.path.join(self.base_dir, "vns", "data",
-                                      "misc", "schedule_template.html"), "r")
+        html_file = open(os.path.join(self.base_dir, "input_data", "misc",
+                                      "schedule_template.html"), "r")
         content = html_file.read()
         html_file.close()
         return content
@@ -45,8 +50,10 @@ class TourPlanVisualizer:
     def _build_rows(self):
         planning_df = self.planning_df[self.planning_df["SCHEDULED_TOUR"].isnull(
         ) != True]
-        planning_df["SCHEDULED_TOUR"] = planning_df["SCHEDULED_TOUR"].astype(
-            "int")
+        # planning_df["SCHEDULED_TOUR"] = planning_df["SCHEDULED_TOUR"].astype(
+        #     "int")
+        planning_df.SCHEDULED_TOUR = planning_df.SCHEDULED_TOUR.astype(
+            "int64")
         planning_df = planning_df.sort_values(
             ["SCHEDULED_TOUR", "SCHEDULED_TIME"])
         u = copy.deepcopy(planning_df["SCHEDULED_TOUR"]).unique()

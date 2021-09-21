@@ -223,14 +223,17 @@ def check_sequence(sequence, tour):
 
 
 def simulated_annealing_improvement(temp, improvement, sim_anneal_accept):
-    q = np.random.uniform(0, 1)
-    p_annahme = math.exp(round(improvement/temp, 5))
-    if(q <= p_annahme):
-        sim_anneal_accept.append(1)
-        return True
-    elif(q > p_annahme):
-        sim_anneal_accept.append(0)
-        return False
+    if temp > 0:
+        q = np.random.uniform(0, 1)
+        p_annahme = math.exp(round(improvement/temp, 5))
+        if(q <= p_annahme):
+            sim_anneal_accept.append(1)
+            return True
+        elif(q > p_annahme):
+            sim_anneal_accept.append(0)
+            return False
+    elif temp == 0:
+        False
 
 
 def update_temperature(temp):
@@ -835,7 +838,7 @@ def shaking(Input_tour, travel_time, service_time, ready_time, due_time, demand,
 
 
 # Main Function to run VNS
-def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, is_exp=False, **exp_params):
+def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, result_path, stop_event, is_exp=False, **exp_params):
     '''---------------------------------------------------------------
     Experiment section: Set parameters, if current run is an experiment
     ------------------------------------------------------------------'''
@@ -904,11 +907,11 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, is_
     ---------------------------------------------------------------'''
     # Output creation
     if(not is_exp):
-        target_folder = os.path.join(
-            dir_name, "results", "vns", "surve_mobility", file)
-        Path(target_folder).mkdir(parents=True, exist_ok=True)
+        # target_folder = os.path.join(
+        #     dir_name, "results", "vns", "surve_mobility", file)
+        Path(result_path).mkdir(parents=True, exist_ok=True)
         outputfile = open(os.path.join(
-            target_folder, 'output.txt'), 'w')
+            result_path, 'output.txt'), 'w')
         outputfile.write(f'File: {file} Customer_Size:{cust_size} \n')
         outputfile.write(
             f'Iteration:0 Distance initial tour:{total_cost(ini_tour, travel_time_matrix, servicetime, readytime, order_ids)} Number of routes initial tour {len(ini_tour)}  \n')
@@ -920,7 +923,11 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, is_
     Sub_tour_VNS = copy.deepcopy(ini_tour)
 
     # MAINCODE
-    for counter in range(cfg.vns['MaxRestarts']):
+    
+    max_restarts = cfg.vns['MaxRestarts']
+
+    time_start_iteration = time.time()
+    for counter in range(max_restarts):
         # convergence.append([])
 
         Sub_tour_local_search = copy.deepcopy(Sub_tour_VNS)
@@ -971,17 +978,43 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, is_
             else:
                 NO_IMP += 1
 
-                if iterations > cfg.vns['MaxIterations'] or NO_IMP > cfg.vns['MaxIterations_NoImp']:
-                    STOP = True
-                    analysis_restarts.append(iterations if len(
-                        analysis_restarts) == 0 else analysis_restarts[-1] + iterations)
-                else:
-                    if k >= len(Shaking_Neighbor) - 1:
-                        k = 0
-                        STOP = False
+                if stop_event == 'iterations':
+                    if iterations > cfg.vns['MaxIterations'] or NO_IMP > cfg.vns['MaxIterations_NoImp']:
+                        STOP = True
+                        analysis_restarts.append(iterations if len(
+                            analysis_restarts) == 0 else analysis_restarts[-1] + iterations)
                     else:
-                        k += 1
-                        STOP = False
+                        if k >= len(Shaking_Neighbor) - 1:
+                            k = 0
+                            STOP = False
+                        else:
+                            k += 1
+                            STOP = False
+                elif stop_event == 'time':
+                    if (time.time() - time_start_iteration)/60 > cfg.vns['MaxRunTime']:
+                        STOP = True
+                        analysis_restarts.append(iterations if len(
+                            analysis_restarts) == 0 else analysis_restarts[-1] + iterations)
+                    else:
+                        if k >= len(Shaking_Neighbor) - 1:
+                            k = 0
+                            STOP = False
+                        else:
+                            k += 1
+                            STOP = False
+                elif stop_event == 'both':
+                    if ((time.time() - time_start_iteration)/60 > cfg.vns['MaxRunTime']) or iterations > cfg.vns['MaxIterations'] or NO_IMP > cfg.vns['MaxIterations_NoImp']:
+                        STOP = True
+                        analysis_restarts.append(iterations if len(
+                            analysis_restarts) == 0 else analysis_restarts[-1] + iterations)
+                    else:
+                        if k >= len(Shaking_Neighbor) - 1:
+                            k = 0
+                            STOP = False
+                        else:
+                            k += 1
+                            STOP = False
+
             Sub_tour_VNS = [Sub_tour_VNS[i] for i in range(len(Sub_tour_VNS)) if
                             len(Sub_tour_VNS[i]) > 2]  # Remove empty tours
             # convergence[counter].append(total_cost(
@@ -1013,11 +1046,11 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, is_
         print(Sub_tour_VNS)
 
     plt.clf()
-    plt.figure(figsize=(20, 10))
+    plt.figure(figsize=(10, 10))
     plt.plot(analysis_convergence_total, color='b', label='Global solution')
     plt.plot(analysis_convergence_shaking, color='g', label='Shaking solution')
     plt.plot(analysis_convergence_local, color='m',
-             label='Local solution', alpha=0.5)
+            label='Local solution', alpha=0.5)
     plt.vlines(x=analysis_restarts[:-1], ymin=min(analysis_convergence_total), ymax=max(
         analysis_convergence_shaking), colors='k', label='Restart', linestyles="dashed")
     plt.title('Convergence')
@@ -1025,29 +1058,33 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, is_
     plt.xlabel('Iterations')
     plt.legend()
 
+
     if(is_exp):
-        target_folder = os.path.join(
-            dir_name, "results", "vns", "surve_mobility", "experiments", file, exp_params["test_name"], "convergence")
-        Path(target_folder).mkdir(parents=True, exist_ok=True)
-        plt_path = f"exp_id_{exp_params['exp_id']}_convergence"
-        plt.savefig("{}/results/vns/surve_mobility/experiments/{}/{}/convergence/{}.png".format(
-            dir_name, file, exp_params["test_name"], plt_path),format='png')
+        # target_folder = os.path.join(
+        #     dir_name, "results", "vns", "surve_mobility", "experiments", file, exp_params["test_name"], "convergence")
+        Path(os.path.join(result_path, 'convergence')).mkdir(parents=True, exist_ok=True)
+        plt_path = f"exp_id_{exp_params['exp_id']}_convergence.png"
+        # plt.savefig("{}/results/vns/surve_mobility/experiments/{}/{}/convergence/{}.png".format(
+        #     dir_name, file, exp_params["test_name"], plt_path),format='png')
+        plt.savefig(os.path.join(result_path, 'convergence', plt_path))
     else:
-        target_folder = os.path.join(
-            dir_name, "results", "vns", "surve_mobility", file)
-        Path(target_folder).mkdir(parents=True, exist_ok=True)
-        plt_path = f"convergence_total"
-        plt.savefig("%s/results/vns/surve_mobility/%s/visualization/%s.png" %
-                    (dir_name, file, plt_path))
+        # target_folder = os.path.join(
+        #     dir_name, "results", "vns", "surve_mobility", file)
+        # Path(target_folder).mkdir(parents=True, exist_ok=True)
+        plt_path = f"convergence_total.png"
+        # plt.savefig("%s/results/vns/surve_mobility/%s/visualization/%s.png" %
+        #             (dir_name, file, plt_path))
+        Path(os.path.join(result_path, 'visualization')).mkdir(parents=True, exist_ok=True)
+        plt.savefig(os.path.join(result_path, 'visualization', plt_path))
 
     plt.close()
 
     plt.clf()
-    plt.figure(figsize=(20, 10))
+    plt.figure(figsize=(10, 10))
     plt.plot([x*100 for x in analysis_simulated_annealing_acceptance], color='b',
-             label='Simulated annealing accepts worse solution')
+            label='Simulated annealing accepts worse solution')
     plt.plot(analysis_improvement_per_iteration,
-             color='g', label='Improvement per iteration')
+            color='g', label='Improvement per iteration')
     plt.vlines(x=analysis_restarts[:-1], ymin=min(analysis_convergence_total), ymax=max(
         analysis_convergence_shaking), colors='k', label='Restart', linestyles="dashed")
     plt.title('Simulated annealing')
@@ -1056,21 +1093,23 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, is_
     plt.legend()
 
     if(is_exp):
-        target_folder = os.path.join(
-            dir_name, "results", "vns", "surve_mobility", "experiments", file, exp_params["test_name"], "convergence")
-        Path(target_folder).mkdir(parents=True, exist_ok=True)
-        plt_path = f"exp_id_{exp_params['exp_id']}_sim_annealing"
-        plt.savefig("{}/results/vns/surve_mobility/experiments/{}/{}/convergence/{}.png".format(
-            dir_name, file, exp_params["test_name"], plt_path),format='png')
+        # target_folder = os.path.join(
+        #     dir_name, "results", "vns", "surve_mobility", "experiments", file, exp_params["test_name"], "convergence")
+        # Path(target_folder).mkdir(parents=True, exist_ok=True)
+        plt_path = f"exp_id_{exp_params['exp_id']}_sim_annealing.png"
+        # plt.savefig("{}/results/vns/surve_mobility/experiments/{}/{}/convergence/{}.png".format(
+        #     dir_name, file, exp_params["test_name"], plt_path),format='png')
+        plt.savefig(os.path.join(result_path, 'convergence', plt_path))
         
     
     else:
-        target_folder = os.path.join(
-            dir_name, "results", "vns", "surve_mobility", file)
-        Path(target_folder).mkdir(parents=True, exist_ok=True)
-        plt_path = f"sim_annealing_total"
-        plt.savefig("%s/results/vns/surve_mobility/%s/visualization/%s.png" %
-                    (dir_name, file, plt_path))
+        # target_folder = os.path.join(
+        #     dir_name, "results", "vns", "surve_mobility", file)
+        # Path(target_folder).mkdir(parents=True, exist_ok=True)
+        plt_path = f"sim_annealing_total.png"
+        # plt.savefig("%s/results/vns/surve_mobility/%s/visualization/%s.png" %
+        #             (dir_name, file, plt_path))
+        plt.savefig(os.path.join(result_path, 'visualization', plt_path))
 
     plt.close()
 

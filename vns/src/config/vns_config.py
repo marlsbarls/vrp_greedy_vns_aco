@@ -11,13 +11,13 @@ shaking = {
         "PROBABILITY": 0.4
     },
     "INSERT": {
-        "PROBABILITY": 0.955
+        "PROBABILITY": 0.97
     },
     "CROSS": {
         "PROBABILITY": 0.6
     },
     "SORT_LEN": {
-        "PROBABILITY": 0.75
+        "PROBABILITY": 1
     }
 }
 
@@ -25,8 +25,20 @@ vns = {
     "2-OPT": {
         "PROBABILITY": 0.5
     },
-    "InitialTemperature": 10,
+    # Original
+    "InitialTemperature": 0,
     "MaxRestarts": 7,
     "MaxIterations_NoImp": 50,
-    "MaxIterations": 100
+    "MaxIterations": 100,
+    "MaxRunTime": 15
+    # "InitialTemperature": 0,
+    # "MaxRestarts": 1,
+    # "MaxIterations_NoImp": 5,
+    # "MaxIterations": 10
+    # Static Experiement
+    # "InitialTemperature": 0,
+    # "MaxRestarts": 7*5,
+    # "MaxIterations_NoImp": 50*5,
+    # "MaxIterations": 100*5
+
 }

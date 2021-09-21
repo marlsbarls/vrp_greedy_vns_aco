@@ -5,14 +5,15 @@ import vns.src.config.preprocessing_config as config
 
 
 class SavingsAlgorithm:
-    def __init__(self, all_orders_df, travel_time_matrix, service_time_matrix):
+    def __init__(self, all_orders_df, travel_time_matrix, service_time_matrix, consider_time):
         self.all_orders_df = all_orders_df
         self.travel_time_matrix = travel_time_matrix
         self.service_time_matrix = service_time_matrix
 
         # consider temporal and spaical distance
-        # self.consider_time = True  
-        self.consider_time = False 
+        # False is original
+        self.consider_time = consider_time 
+        # self.consider_time = False 
 
     @staticmethod
     def time_checker(tour, current_order_df, travel_time_matrix, service_time_matrix, ready_time, due_time, time=0):
@@ -79,7 +80,7 @@ class SavingsAlgorithm:
     def initialization(self, time=0):
 
         current_order_df = self.all_orders_df[(
-            self.all_orders_df.READYTIME <= time)]
+            self.all_orders_df.AVAILABLETIME <= time)]
         demand = current_order_df['DEMAND'].to_numpy()
         readytime = current_order_df['READYTIME'].to_numpy()
         duetime = current_order_df['DUETIME'].to_numpy()
@@ -177,9 +178,9 @@ class SavingsAlgorithm:
             Ini_tour, self.all_orders_df, self.travel_time_matrix, self.service_time_matrix, readytime, duetime)
 
         travel_time = get_travel_time_matrix(len(self.all_orders_df)-1, self.all_orders_df['XCOORD'], self.all_orders_df['YCOORD'], self.all_orders_df['XCOORD_END'], self.all_orders_df['YCOORD_END'])
+        all_order_ids = self.all_orders_df['order_id'].values.tolist()
 
-        
-        cost = total_cost(Ini_tour, travel_time, self.service_time_matrix, readytime, order_ids)
+        cost = total_cost(Ini_tour, travel_time, self.service_time_matrix, self.all_orders_df['READYTIME'], all_order_ids)
 
         return current_order_df, planning_df, Ini_tour
 
@@ -193,7 +194,7 @@ class SavingsAlgorithm:
         not_scheduled_list = planning_df.loc[planning_df['SCHEDULED_TIME'].isnull(
         ), 'CUST_NO']
         current_order_df = self.all_orders_df[(
-            self.all_orders_df.READYTIME <= time) & self.all_orders_df['CUST_NO'].isin(not_scheduled_list)]
+            self.all_orders_df.AVAILABLETIME <= time) & self.all_orders_df['CUST_NO'].isin(not_scheduled_list)]
 
         # Sollte hier vielleicht current_order_df stehen?
         demand = self.all_orders_df['DEMAND'].to_numpy()
@@ -290,6 +291,10 @@ class SavingsAlgorithm:
         current_orders = self._get_current_orders(
             current_tour, planning_df, time)
 
-        cost = total_cost(current_tour, self.travel_time_matrix, self.service_time_matrix, readytime, order_idss)
+        travel_time = get_travel_time_matrix(len(self.all_orders_df)-1, self.all_orders_df['XCOORD'], self.all_orders_df['YCOORD'], self.all_orders_df['XCOORD_END'], self.all_orders_df['YCOORD_END'])
+
+        all_order_ids = self.all_orders_df['order_id'].values.tolist()
+        
+        cost = total_cost(current_tour, travel_time, self.service_time_matrix, self.all_orders_df['READYTIME'], all_order_ids)
 
         return current_order_df, planning_df, current_tour, current_orders

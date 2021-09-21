@@ -5,10 +5,11 @@ import geopandas as gpd
 from shapely.geometry import Point
 import time
 import os
+from datetime import datetime
 
 
 class VrptwAcoFigure:
-    def __init__(self, source, time_slice, nodes: list, path_queue: MPQueue, path_map, file_path, folder_name_result):
+    def __init__(self, source, time_slice, nodes: list, path_queue: MPQueue, path_map, file_path, folder_name_result, opt_time):
         """
         matplotlib绘图计算需要放在主线程，寻找路径的工作建议另外开一个线程，
         The matplotlib drawing calculations need to be put in the main thread, and the work of finding paths suggests a separate thread.
@@ -25,6 +26,7 @@ class VrptwAcoFigure:
 
         self.nodes = nodes
         self.source = source
+        self.opt_time = opt_time
 
         # Distinction between test instances added
         if source == 't':
@@ -155,11 +157,17 @@ class VrptwAcoFigure:
                 # Redrawing the line
                 # MOD: Save figure to visualization folder in result folder
                 current_time = time.strftime('%H:%M:%S', time.localtime())
-                self.figure_ax.set_title('travel distance: %0.2f, number of vehicles: %d , time: %s' % (distance, used_vehicle_num, current_time))
+                if self.opt_time == False: 
+                    self.figure_ax.set_title('travel distance: %0.2f, number of vehicles: %d , time: %s' % (distance, used_vehicle_num, current_time))
+                if self.opt_time == True: 
+                    self.figure_ax.set_title('travel time: %0.2f, number of vehicles: %d , time: %s' % (distance, used_vehicle_num, current_time))
+                
                 self._draw_line(path)
                 # self.figure.show()
                 result_folder_vis = self.folder_name_result + '/visualization'
                 file_name_result = 'result_visualization.png'
+                now = datetime.now()
+                dt_string = now.strftime("%d/%m_%H:%M")
                 plt.savefig(os.path.join(result_folder_vis, file_name_result.split('.')[0] + '_' + str(self.time_slice) + '.png'))
 
             plt.pause(1)
