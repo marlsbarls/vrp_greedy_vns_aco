@@ -1,5 +1,6 @@
-from vns.src.algorithm.improved_vns import total_cost
+from vns.src.algorithm.improved_vns import idle_time, total_cost
 import numpy as np
+import pandas as pd
 import random
 from aco.vprtw_aco_figure import VrptwAcoFigure
 from aco.vrptw_base import VrptwGraph, PathMessage
@@ -20,7 +21,7 @@ import os
 
 # MOD: Arguments source, path_handover, path_map, folder_name_result, alpha and time_slice passed from execution file
 class MultipleAntColonySystem:
-    def __init__(self, graph: VrptwGraph, source, path_handover, path_map, folder_name_result, service_time_matrix=None, order_ids=None, ants_num=10, alpha=1,
+    def __init__(self, graph: VrptwGraph, source, path_handover, path_map, folder_name_result, result_df, parameter, service_time_matrix=None, order_ids=None, ants_num=10, alpha=1,
                  beta=1, q0=0.1, time_slice=0, whether_or_not_to_show_figure=True, opt_time=False, min_per_km=1):
         super()
         # graph 结点的位置、服务时间信息 Location of nodes, service hours information
@@ -45,6 +46,7 @@ class MultipleAntColonySystem:
         self.best_vehicle_num = None
         self.min_per_km = min_per_km
 
+
         self.whether_or_not_to_show_figure = whether_or_not_to_show_figure
 
         # MOD: Added parameters
@@ -60,6 +62,12 @@ class MultipleAntColonySystem:
             self.service_time_matrix = service_time_matrix
             self.order_ids = order_ids
         self.opt_time = opt_time
+        self.time_iterations = 0
+        self.vehicle_iterations = 0
+        self.macs_iterations = 0
+        self.result_df = result_df
+        self.parameter = parameter
+        self.iteration_run_time = 0
 
     @staticmethod
     def stochastic_accept(index_to_visit, transition_prob):
@@ -737,6 +745,7 @@ class MultipleAntColonySystem:
                 # MOD: total_given_time decisive for the termination of the program (before: start_time_found_improved_
                 # solution)
                 if time.time() - start_time_total > 60 * total_given_time:
+                    self.iteration_run_time = (time.time() - start_time_total)/60
                     stop_event.set()
                     self.print_and_write_in_file(file_to_write, '*' * 50)
                     self.print_and_write_in_file(file_to_write, 'time is up: cannot find a better solution in given time(%d minutes)' % total_given_time)
@@ -757,7 +766,7 @@ class MultipleAntColonySystem:
                                               'vehicle_num: '+str(self.best_vehicle_num), 'costs: '+str(total_cost), 
                                               'travel time: '+str(travel_time), str([]))
                     elif self.opt_time:
-                        travel_time = Ant.cal_total_travel_time(self.graph, self.best_path, self.service_time_matrix, self.order_ids)
+                        travel_time, idle_time = Ant.cal_total_travel_time(self.graph, self.best_path, self.service_time_matrix, self.order_ids)
                         distance = Ant.cal_total_travel_distance(self.graph, self.best_path)
                         cost_test = self.best_path_travel_time * cfg.cost_per_minute + self.best_vehicle_num * cfg.cost_per_driver
                         self.print_and_write_in_file(file_to_write, 'best path travel time is %f, best vehicle_num is %d' % (self.best_path_travel_time, self.best_vehicle_num))
@@ -766,8 +775,16 @@ class MultipleAntColonySystem:
                         result_tuple_costs = ('path: '+str(self.best_path), 'distance: '+str(distance), 
                                               'vehicle_num: '+str(self.best_vehicle_num), 'costs: '+str(total_cost), 
                                               'travel time: '+str(travel_time), str([]))
-                    # MOD: Save current best results to file and copy to handover file
 
+                        self.result_df.loc[len(self.result_df.index)] = [
+                                self.parameter, cfg.cost_per_driver, cfg.cost_per_hour, total_cost, idle_time, distance, 
+                                self.best_vehicle_num, self.iteration_run_time, self.best_path]
+                        self.result_df.to_csv(os.path.join(self.folder_name_result, 'result.csv'))
+
+                        
+                    # MOD: Save current best results to file and copy to handover file
+                    
+                    
                     f = open(self.path_handover, 'w')
                     separator = '\n'
                     f.write(separator.join(result_tuple))

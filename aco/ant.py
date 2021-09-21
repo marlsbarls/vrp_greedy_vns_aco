@@ -292,6 +292,7 @@ class Ant:
         current_time = 0
         vehicle_num = 0
         dist_dict = {}
+        total_idle_time = 0
         # test_dict = {}
         # test_path = []
         for i in range(0, len(path)-1):
@@ -310,6 +311,7 @@ class Ant:
             if path[i] != 0:
                 wait_time = max(graph.all_nodes[path[i+1]].ready_time - current_time - dist, 0)
                 current_time += dist + wait_time
+                total_idle_time += wait_time
             else:
                 wait_time = 0
                 current_time = max(graph.all_nodes[path[i+1]].ready_time, dist)
@@ -325,7 +327,7 @@ class Ant:
 
         total_travel_time = sum(dist_dict.values())
 
-        return total_travel_time
+        return total_travel_time, total_idle_time
 
 
 

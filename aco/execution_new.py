@@ -30,11 +30,12 @@ class Execution():
         self.total_given_time = 15 # original
         if self.dynamic == 'static': 
             self.total_given_time = 480
-        self.total_given_time = 15
+        # self.total_given_time = 15
         # self.show_figure = True
-        self.show_figure = True
+        self.show_figure = False
         self.folder_name_handover = 'aco/handover'
         self.file_name_handover = 'handover.txt'
+
 
         # Input data realworld instance Chargery
         self.shift_begin = '09:00:00'
@@ -45,15 +46,18 @@ class Execution():
         self.interval_length = 15  # minutes
         if self.dynamic == 'static':
             self.interval_length = 480  # minutes
-        self.interval_length = 15  # minutes
         # self.minutes_per_km = 2
         self.minutes_per_km = 1
         self.vehicles = 25
         
+        # # quick test
+        # self.total_given_time = 1
+        # self.interval_length = 1
+
         # Mod: Marlene 
         # opt_time = True minimizes travel time instead of travel distance
         # original = False
-        self.opt_time = False 
+        self.opt_time = True 
         # self.opt_time = False
         if self.source == 't':
             self.opt_time = False
@@ -81,6 +85,19 @@ class Execution():
         self.average_orders = 66.93
         self.folder_name_analysis_available_time = 'aco/additional_data/analysis_available_time'
 
+        self.parameters = {                                      
+                    'number of ants': self.ants_num,
+                    'alpha': self.alpha,
+                    'beta': self.beta,
+                    'q0': self.q0,
+                    'shift length': self.shift_length,
+                    'capacity': self.capacity,
+                    'interval length': self.interval_length,  
+                    'minutes per km': self.minutes_per_km,
+                    'vehicles': self.vehicles,
+                    'optimize for time': self.opt_time
+        }
+
     def intervals(self, shift_length, working_day_intervals):
         if shift_length % working_day_intervals != 0:
             return False
@@ -96,7 +113,9 @@ class Execution():
         if self.source == 't':
             folder_name_target_pp = 'input_data/solomon/orders'
             self.folder_name_testfile = folder_name_target_pp
-
+           
+        self.result_df = pd.DataFrame(columns=[
+        'parameters', 'cost per driver', 'cost per hour', 'final_cost', 'idle_time', 'tour_length', 'vehicle_number', 'runtime', 'final_tour'])
         #  Run MACS and Update Process alternately, Update Process is last executed prior to the last execution of MACS
         if self.intervals(self.shift_length, self.interval_length):
             intervals = int(self.shift_length//self.interval_length)
@@ -144,14 +163,14 @@ class Execution():
                         graph = VrptwGraph(path_testfile, path_handover, time_slice, self.source, self.minutes_per_km, service_time_matrix, 
                                            order_ids, test_type=self.dynamic, opt_time=self.opt_time)
                         macs = MultipleAntColonySystem(graph, source=self.source, path_handover=path_handover, path_map=path_map, 
-                                                       folder_name_result=folder_name_result, ants_num=self.ants_num, alpha=self.alpha, beta=self.beta, 
+                                                       folder_name_result=folder_name_result, result_df=self.result_df, parameter=self.parameters, ants_num=self.ants_num, alpha=self.alpha, beta=self.beta, 
                                                        q0=self.q0, time_slice=time_slice, whether_or_not_to_show_figure=self.show_figure, 
                                                        service_time_matrix=service_time_matrix, order_ids=order_ids, opt_time=self.opt_time)
                     elif self.source == 't':
                         graph = VrptwGraph(path_testfile, path_handover, time_slice, self.source, self.minutes_per_km, 
                                            test_type=self.dynamic)
                         macs = MultipleAntColonySystem(graph, source=self.source, path_handover=path_handover, path_map=path_map,
-                                                       folder_name_result=folder_name_result, ants_num=self.ants_num, alpha=self.alpha, 
+                                                       folder_name_result=folder_name_result, result_df=self.result_df, parameter=self.parameters, ants_num=self.ants_num, alpha=self.alpha, 
                                                        beta=self.beta, q0=self.q0, time_slice=time_slice, whether_or_not_to_show_figure=self.show_figure)
 
                     macs.run_multiple_ant_colony_system(total_given_time=self.total_given_time)
