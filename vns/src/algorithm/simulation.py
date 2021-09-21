@@ -20,7 +20,7 @@ class VNSSimulation():
     def __init__(self, test_files, dynamic):
         self.test_files = test_files
         self.dyanmic = dynamic
-        self.savings_consider_time = False
+        self.savings_consider_time = True
         # stop_event = iterations or time or both
         # self.stop_event = 'iterations'
         self.stop_event = 'time'
