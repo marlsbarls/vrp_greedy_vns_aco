@@ -54,9 +54,9 @@ if test_type != 'dynamic' and test_type != 'static':
 
 # test files surve_mobility
 if source == 'surve_mobility':
-    test_files = ['2020-07-07', '2020-07-08', '2020-08-15', '2020-08-14']
+    # test_files = ['2020-07-07', '2020-07-08', '2020-08-15', '2020-08-14']
     # test_files = ['2020-08-15', '2020-08-14']
-    # test_files = ['2020-07-07']
+    test_files = ['2020-07-07']
     # test_files = ['2020-07-08']
     # test_files = ['2020-08-15']
     # test_files = ['2020-08-14']
@@ -68,7 +68,8 @@ if source == 'surve_mobility':
     # run aco
     if __name__ == '__main__':
         aco = Execution(test_files, test_type, source)
-        aco.run_macs()
+        #aco.run_macs()
+        aco.validation_macs()
 
     # # run vns
     # vns = VNSSimulation(test_files, test_type)

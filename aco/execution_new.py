@@ -50,9 +50,9 @@ class Execution():
         self.minutes_per_km = 1
         self.vehicles = 25
         
-        # # quick test
-        # self.total_given_time = 1
-        # self.interval_length = 1
+        # quick test
+        self.total_given_time = 1
+        self.interval_length = 1
 
         # Mod: Marlene 
         # opt_time = True minimizes travel time instead of travel distance
@@ -95,7 +95,8 @@ class Execution():
                     'interval length': self.interval_length,  
                     'minutes per km': self.minutes_per_km,
                     'vehicles': self.vehicles,
-                    'optimize for time': self.opt_time
+                    'optimize for time': self.opt_time,
+                    'dynamic or static': self.dynamic
         }
 
     def intervals(self, shift_length, working_day_intervals):
@@ -103,6 +104,11 @@ class Execution():
             return False
         else:
             return True
+
+    def validation_macs(self):
+        for i in range(0, 5):
+            self.exp_id = i
+            self.run_macs()
 
     def run_macs(self):
         # Input files
@@ -128,6 +134,7 @@ class Execution():
 
                 print('---------------')
                 print(file_name)
+                self.parameters['file'] = file_name
                 print('---------------')
 
                 dir_name = os.path.dirname(os.path.realpath('__file__'))

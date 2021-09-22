@@ -126,9 +126,9 @@ class VNSSimulation():
 
                     # intervals = [15, 30, 60]
                     interval = 15
-                    for exp_id in range(0, 2):
+                    for exp_id in range(0, 5):
                         for time_slice in range(0, 481, interval):
-                            exp_id_result = f'{exp_id}_{interval}'
+                            exp_id_result = exp_id
                             time_start = time.time()
                             if(time_slice == 0):
                                 current_order_df, planning_df, current_tour = savings.initialization(
@@ -155,7 +155,7 @@ class VNSSimulation():
                                                 file, True, test_name=test_name, exp_id=exp_id_result)
                             tv.run()
 
-                            result_df.to_csv(os.path.join(target_folder_results, 'result.csv'))
+                            result_df.to_csv(os.path.join(target_folder_results, f'result_{exp_id}.csv'))
 
                             print('')
 
@@ -173,7 +173,7 @@ class VNSSimulation():
                 interval = 15
                 for exp_id in range(0, 5):
                     for time_slice in range(0, 481, interval):
-                        exp_id_result = f'{exp_id}_{interval}'
+                        exp_id_result = exp_id
                         time_start = time.time()
                         if(time_slice == 0):
                             current_order_df, planning_df, current_tour = savings.initialization(
@@ -200,6 +200,6 @@ class VNSSimulation():
                                             file, True, test_name=test_name, exp_id=exp_id_result)
                         tv.run()
 
-                        result_df.to_csv(os.path.join(target_folder_results, 'result.csv'))
+                        result_df.to_csv(os.path.join(target_folder_results, f'result_{exp_id}.csv'))
                         print('')
 

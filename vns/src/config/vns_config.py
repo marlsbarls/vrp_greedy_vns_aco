@@ -31,6 +31,7 @@ vns = {
     "MaxIterations_NoImp": 50,
     "MaxIterations": 100,
     "MaxRunTime": 15
+    # "MaxRunTime": 0.1
     # "InitialTemperature": 0,
     # "MaxRestarts": 1,
     # "MaxIterations_NoImp": 5,
