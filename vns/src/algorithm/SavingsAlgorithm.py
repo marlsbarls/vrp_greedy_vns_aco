@@ -14,7 +14,9 @@ class SavingsAlgorithm:
         # False is original
         self.consider_time = consider_time 
         # self.consider_time = False 
-
+            
+        
+    # original
     @staticmethod
     def time_checker(tour, current_order_df, travel_time_matrix, service_time_matrix, ready_time, due_time, time=0):
         counter = 0
@@ -85,6 +87,8 @@ class SavingsAlgorithm:
         readytime = current_order_df['READYTIME'].to_numpy()
         duetime = current_order_df['DUETIME'].to_numpy()
         order_ids = current_order_df['order_id'].values.tolist()
+        travel_time = get_travel_time_matrix(len(self.all_orders_df)-1, self.all_orders_df['XCOORD'], self.all_orders_df['YCOORD'], self.all_orders_df['XCOORD_END'], self.all_orders_df['YCOORD_END'])
+        all_order_ids = self.all_orders_df['order_id'].values.tolist()
 
         # Route Construction
         # Savings Initialization - Roundtrip from depot to every customer
@@ -145,6 +149,8 @@ class SavingsAlgorithm:
                 time_check = self.time_checker(
                     new_sub, current_order_df, self.travel_time_matrix, self.service_time_matrix, readytime, duetime)
 
+                # time_check = self.time_checker(new_sub, travel_time, self.service_time_matrix, readytime, duetime, all_order_ids)
+
                 merge_demand = sum(demand[Sub_tour[a[0]]]) + \
                     sum(demand[Sub_tour[b[0]]])
 
@@ -177,10 +183,12 @@ class SavingsAlgorithm:
         planning_df = create_planning_df(
             Ini_tour, self.all_orders_df, self.travel_time_matrix, self.service_time_matrix, readytime, duetime)
 
-        travel_time = get_travel_time_matrix(len(self.all_orders_df)-1, self.all_orders_df['XCOORD'], self.all_orders_df['YCOORD'], self.all_orders_df['XCOORD_END'], self.all_orders_df['YCOORD_END'])
-        all_order_ids = self.all_orders_df['order_id'].values.tolist()
+        
 
         cost = total_cost(Ini_tour, travel_time, self.service_time_matrix, self.all_orders_df['READYTIME'], all_order_ids)
+
+        # Ini_tour_4 = Ini_tour[4]
+        # time_check = self.time_checker_new(Ini_tour_4, travel_time, self.service_time_matrix, readytime, duetime, all_order_ids)
 
         return current_order_df, planning_df, Ini_tour
 
@@ -201,7 +209,10 @@ class SavingsAlgorithm:
         readytime = current_order_df['READYTIME'].to_numpy()
         duetime = current_order_df['DUETIME'].to_numpy()
 
-        order_idss = current_order_df['order_id'].values.tolist()
+        travel_time = get_travel_time_matrix(len(self.all_orders_df)-1, self.all_orders_df['XCOORD'], self.all_orders_df['YCOORD'], self.all_orders_df['XCOORD_END'], self.all_orders_df['YCOORD_END'])
+        all_order_ids = self.all_orders_df['order_id'].values.tolist()
+        all_readytime = self.all_orders_df['READYTIME'].to_numpy()
+        all_duetime = self.all_orders_df['DUETIME'].to_numpy()
 
         new_orders = current_order_df['CUST_NO'].values.tolist()
         end_orders = []
@@ -235,6 +246,25 @@ class SavingsAlgorithm:
                                                == order_i, 'CUST_NO'].values[0]
                     j = self.all_orders_df.loc[self.all_orders_df['order_id']
                                                == order_j, 'CUST_NO'].values[0]
+                    if not self.consider_time:
+                        saving = round(self.travel_time_matrix[order_i+":"+"order_0"] +
+                                   self.travel_time_matrix["order_0"+":"+order_j] - self.travel_time_matrix[order_i+":"+order_j])
+                    elif self.consider_time:
+                        # punishment if ready_time j > ready_time i
+                        space_distance = round(self.travel_time_matrix[order_i+":"+"order_0"] +
+                                   self.travel_time_matrix["order_0"+":"+order_j] - self.travel_time_matrix[order_i+":"+order_j])
+                        ready_time_i = self.all_orders_df .loc[self.all_orders_df ['CUST_NO']
+                                             == i, 'READYTIME'].values[0]
+                        ready_time_j = self.all_orders_df .loc[self.all_orders_df ['CUST_NO']
+                                             == j, 'READYTIME'].values[0]
+                        if ready_time_j <= ready_time_i:
+                            temp_distance = 0
+                        else:
+                            # temp_distance = ready_time_j - ready_time_i 
+                            temp_distance = ready_time_i - ready_time_j  
+
+                        saving = space_distance + temp_distance
+
                     saving_list.append([i, j, saving])
 
         np.asarray(saving_list)
@@ -255,6 +285,8 @@ class SavingsAlgorithm:
 
                 time_check = self.time_checker(
                     new_sub, self.all_orders_df, self.travel_time_matrix, self.service_time_matrix, readytime, duetime)
+
+                # time_check = self.time_checker(new_sub, travel_time, self.service_time_matrix, all_readytime, all_duetime, all_order_ids)
 
                 merge_demand = sum(demand[Sub_tour[a[0]]]) + \
                     sum(demand[Sub_tour[b[0]]])

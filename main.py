@@ -42,7 +42,6 @@ load_dotenv(os.path.join(BASE_DIR))
 # test type: static or dynamic
 test_type = 'dynamic'
 # test_type = 'static'
-
 # source: solomon or surve_mobility
 source = 'surve_mobility'
 # source = 'solomon' 
@@ -54,31 +53,35 @@ if test_type != 'dynamic' and test_type != 'static':
 
 # test files surve_mobility
 if source == 'surve_mobility':
+    test_files = ['2020-07-07', '2020-07-08', '2020-08-15', '2020-08-14']
     # test_files = ['2020-07-07', '2020-07-08', '2020-08-15', '2020-08-14']
+    # test_files = ['2020-07-08', '2020-08-15', '2020-08-14']
     # test_files = ['2020-08-15', '2020-08-14']
-    test_files = ['2020-07-07']
+    # test_files = ['2020-07-07', '2020-07-08']
     # test_files = ['2020-07-08']
+    # test_files = ['2020-07-07']
     # test_files = ['2020-08-15']
     # test_files = ['2020-08-14']
 
-    # # run greedy
+    # run greedy
     # greedy = Surve_Greedy(test_files, test_type, source)
     # greedy.run_greedy()
 
     # run aco
     if __name__ == '__main__':
         aco = Execution(test_files, test_type, source)
-        #aco.run_macs()
-        aco.validation_macs()
+        aco.run_macs()
+        # aco.validation_macs()
 
-    # # run vns
+    # run vns
     # vns = VNSSimulation(test_files, test_type)
     # vns.run_simulation()
 
 
 if source == 'solomon':
-    test_files = ['C101']
+    # test_files = ['C101', 'C201', 'R101', 'R201', 'RC101', 'RC201']
     # test_files = ['C201']
+    test_files = ['C201']
     # test_files = ['R101', 'C101']
 
     ## run greedy

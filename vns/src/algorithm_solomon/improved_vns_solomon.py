@@ -662,7 +662,7 @@ def run_vns(file, ini_tour, all_order_df, capacity, visibility, result_path, is_
         outputfile.write(
             f'Iteration:0 Distance initial tour:{total_distance(ini_tour, distance_matrix)} Number of routes initial tour {len(ini_tour)}  \n')
 
-    print('Start', file, cust_size)
+    print('Start', file, 'Cust Size', cust_size)
     print('0', total_distance(ini_tour, distance_matrix), len(ini_tour))
 
     # Initial solution

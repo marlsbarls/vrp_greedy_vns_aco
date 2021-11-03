@@ -45,8 +45,8 @@ class Node:
 
 class VrptwGraph:
     # MOD: Arguments path_handover, time_slice, source, minutes_per_km are passed and initialized
-    def __init__(self, file_path, path_handover, time_slice, source, minutes_per_km, service_time_matrix=None, order_ids=None, 
-                 test_type='dynamic', rho=0.1, opt_time=False):
+    def __init__(self, file_path, path_handover, time_slice, source, minutes_per_km, opt_time, service_time_matrix=None, order_ids=None, 
+                 test_type='dynamic', rho=0.1):
         super()
          # MOD: Marlene
         self.test_type = test_type
@@ -98,61 +98,17 @@ class VrptwGraph:
 
     @staticmethod
     def cal_total_travel_time(graph, path, service_time_matrix, order_ids, minutes_per_km=1):
-        # travel_time = 0
-        # current_time = 0
-        # vehicle_num = 0
-        # dist_dict = {}
-        # # test_dict = {}
-        # # test_path = []
-        # for i in range(0, len(path)-1):
-        #     if path[i] == 0 and i != 0:
-        #         dist_dict[vehicle_num] = travel_time
-        #         # test_dict[vehicle_num] = test_path
-        #         current_time = 0
-        #         vehicle_num += 1
-        #         travel_time = 0
-        #         # test_path = []
-        #     dist = graph.node_dist_mat[path[i]][path[i+1]]*minutes_per_km
-        #     # no wait time if depot 
-        #     if path[i] != 0:
-        #         wait_time = max(graph.all_nodes[path[i+1]].ready_time - current_time - dist, 0)
-        #         current_time += dist + wait_time
-        #     else:
-        #         wait_time = 0
-        #         current_time = max(graph.all_nodes[path[i+1]].ready_time, dist)
-
-        #     service_time = VrptwGraph.get_service_time(path[i+1], service_time_matrix, 
-        #                                                     current_time, order_ids)
-        #     current_time += service_time
-        #     travel_time += dist + wait_time + service_time
-        #     # test_path.append(path[i])
-            
-        # dist_dict[vehicle_num] = travel_time
-        # # test_dict[vehicle_num] = test_path
-
-        # total_travel_time = sum(dist_dict.values())
-
-        # return total_travel_time
-
         travel_time = 0
         current_time = 0
         vehicle_num = 0
         dist_dict = {}
-        # test_dict = {}
-        # test_path = []
         for i in range(0, len(path)-1):
-            if path[i] == 0:
-                if vehicle_num == 9:
-                    print('')
             if path[i] == 0 and i != 0:
                 dist_dict[vehicle_num] = travel_time
-                # test_dict[vehicle_num] = test_path
                 current_time = 0
                 vehicle_num += 1
                 travel_time = 0
-                # test_path = []
             dist = graph.node_dist_mat[path[i]][path[i+1]]*minutes_per_km
-            # no wait time if depot 
             if path[i] != 0:
                 wait_time = max(graph.all_nodes[path[i+1]].ready_time - current_time - dist, 0)
                 current_time += dist + wait_time
@@ -164,15 +120,20 @@ class VrptwGraph:
                                                             current_time, order_ids)
             current_time += service_time
             travel_time += dist + wait_time + service_time
-            # test_path.append(path[i])
             
         dist_dict[vehicle_num] = travel_time
-        # test_dict[vehicle_num] = test_path
 
         total_travel_time = sum(dist_dict.values())
 
         return total_travel_time
     
+    def _cal_total_travel_distance(self, travel_path):
+        distance = 0
+        current_ind = travel_path[0]
+        for next_ind in travel_path[1:]:
+            distance += self.node_dist_mat[current_ind][next_ind]
+            current_ind = next_ind
+        return distance
 
     def copy(self, init_pheromone_val):
         new_graph = copy.deepcopy(self)
@@ -194,6 +155,7 @@ class VrptwGraph:
         # MOD: Marlene
         vehicle_num = cfg.num_vehicles
         vehicle_capacity = cfg.capacity
+
         order_df = pd.read_csv(file_path)
         for index, rows in order_df.iterrows():
             if self.source == 'r':
@@ -234,8 +196,6 @@ class VrptwGraph:
                 Node(int(item[0]), float(item[1]), float(item[2]), float(item[3]), float(item[4]), float(item[5]),
                      float(item[6]), float(item[7]), float(item[8]), float(item[9])) for item in self.node_list if int(item[0]) in path_list)
         
-        # 
-
         node_num = len(all_nodes)
 
         # 创建距离矩阵
@@ -254,6 +214,8 @@ class VrptwGraph:
                 elif self.source == 'r':
                     node_dist_mat[i][j] = self.calculate_dur_r(node_a, node_b, orientation='ij')
                     node_dist_mat[j][i] = self.calculate_dur_r(node_a, node_b, orientation='ji')
+
+
         return node_num, nodes, node_dist_mat, vehicle_num, vehicle_capacity, all_nodes
 
     def calculate_dur_t(self, node_a, node_b):
@@ -265,9 +227,9 @@ class VrptwGraph:
 
     def calculate_dur_r(self, node_a, node_b, orientation):
         if orientation == 'ij':
-            return self.haversine(node_b.x, node_b.y, node_a.x_end, node_a.y_end) * self.minutes_per_km
+            return self.haversine(node_b.x, node_b.y, node_a.x_end, node_a.y_end) * cfg.minutes_per_kilometer
         elif orientation == 'ji':
-            return self.haversine(node_a.x, node_a.y, node_b.x_end, node_b.y_end) * self.minutes_per_km
+            return self.haversine(node_a.x, node_a.y, node_b.x_end, node_b.y_end) * cfg.minutes_per_kilometer
 
     def local_update_pheromone(self, start_ind, end_ind):
         self.pheromone_mat[start_ind][end_ind] = (1-self.rho) * self.pheromone_mat[start_ind][end_ind] + \
@@ -295,7 +257,7 @@ class VrptwGraph:
             service_time = service_time_matrix[order_ids[next_index]+":"+traffic_phase]
             return service_time
 
-    def _get_total_travel_time(self, path):
+    def _get_total_travel_time(self, path, get_current_time=False):
         travel_time = 0
         current_time = 0
         vehicle_num = 0
@@ -303,9 +265,9 @@ class VrptwGraph:
         # test_dict = {}
         # test_path = []
         for i in range(0, len(path)-1):
-            if path[i] == 0:
-                if vehicle_num == 9:
-                    print('')
+            # if path[i] == 0:
+                # if vehicle_num == 9:
+                #     print('')
             if path[i] == 0 and i != 0:
                 dist_dict[vehicle_num] = travel_time
                 # test_dict[vehicle_num] = test_path
@@ -333,8 +295,10 @@ class VrptwGraph:
 
         total_travel_time = sum(dist_dict.values())
 
-        return total_travel_time
-    
+        if get_current_time:
+            return total_travel_time, current_time
+        else:
+            return total_travel_time
     # @staticmethod
     # def get_total_travel_time(path, dist_mat, ready_time, service_time_matrix, order_ids, minutes_per_km=1):
     #     travel_time = 0
@@ -373,6 +337,188 @@ class VrptwGraph:
 
     #     return total_travel_time
 
+    # def nearest_neighbor_heuristic(self, max_vehicle_num=None):
+    #     index_to_visit = []
+
+    #     # MOD: only get nodes with available time 0 for index to visit
+    #     for i in range(1, self.node_num):
+    #         if self.all_nodes[i].available_time == 0:
+    #             index_to_visit.append(i)
+
+    #     current_index = 0
+    #     current_load = 0
+    #     current_time = 0
+    #     travel_distance = 0
+    #     travel_path = [0]
+    #     time_travelled = 0
+    #     time_dict = {}
+    #     veh_num = -1
+    #     # test_dict = {}
+
+    #     if max_vehicle_num is None:
+    #         max_vehicle_num = self.node_num
+
+    #     while len(index_to_visit) > 0 and max_vehicle_num > 0:
+    #         nearest_next_index = self._cal_nearest_next_index(index_to_visit, current_index, current_load, current_time)
+    #         if nearest_next_index is None:
+    #             travel_distance += self.node_dist_mat[current_index][0]
+    #             if self.opt_time:
+    #                 time_travelled += self.node_dist_mat[current_index][0]*self.minutes_per_km
+    #             current_load = 0
+    #             current_time = 0
+    #             travel_path.append(0)
+    #             current_index = 0
+                
+
+    #             max_vehicle_num -= 1
+    #         else:
+    #             # MOD: Marlene
+    #             travel_path.append(nearest_next_index)
+    #             if self.opt_time:
+    #                 # if current_index == 0:
+    #                 #     if veh_num >= 0:
+    #                 #         time_dict[veh_num] = time_travelled  
+    #                 #         # test_dict[veh_num_test] = test_path
+    #                 #     veh_num += 1
+    #                 #     time_travelled = 0
+    #                     # test_path = []
+                    
+    #             # current_load += self.all_nodes[nearest_next_index].demand + self.node_dist_mat[current_index][nearest_next_index]
+    #             dist = self.node_dist_mat[current_index][nearest_next_index]
+
+    #             # MOD: Marlene
+                
+    #             # wait time only when driver is not at depot
+    #             if current_index != 0:
+    #                 wait_time = max(self.all_nodes[nearest_next_index].ready_time - current_time - dist, 0)
+    #                 current_time += dist*self.minutes_per_km + wait_time
+    #                 service_time = VrptwGraph.get_service_time(nearest_next_index, self.service_time_matrix, 
+    #                                                         current_time, self.order_ids)
+    #                 current_time += service_time
+    #             elif current_index == 0:
+
+    #                 wait_time = 0
+    #                 current_time = max(self.all_nodes[nearest_next_index].ready_time, dist*self.minutes_per_km)
+    #                 service_time = VrptwGraph.get_service_time(nearest_next_index, self.service_time_matrix, 
+    #                                                         current_time, self.order_ids)
+    #                 current_time += service_time
+
+    #             current_load += service_time + self.node_dist_mat[current_index][nearest_next_index]
+                    
+
+    #             index_to_visit.remove(nearest_next_index)
+
+    #             travel_distance += self.node_dist_mat[current_index][nearest_next_index]
+    #             if self.opt_time:
+    #                     time_travelled += dist*self.minutes_per_km + wait_time + service_time
+    #             travel_path.append(nearest_next_index)
+    #             # test_path.append(nearest_next_index)
+    #             current_index = nearest_next_index
+
+    #     # 最后要回到depot
+    #     # And finally, back to the depot.
+    #     travel_distance += self.node_dist_mat[current_index][0]
+    #     if self.opt_time:
+    #         time_travelled += self.node_dist_mat[current_index][0]*self.minutes_per_km 
+    #         time_dict[veh_num] = time_travelled
+    #         total_time_travelled = sum(time_dict.values())
+    #         # test_dict[veh_num_test] = test_path
+    #     travel_path.append(0)
+        
+    #     vehicle_num = travel_path.count(0)-1
+    #     if self.opt_time:
+    #         test = self._get_total_travel_time(travel_path)
+    #         # test2 = get_total_travel_time(travel_path, self.node_dist_mat, ready_time, service_time_matrix, order_ids, )
+            
+    #         return travel_path, total_time_travelled, vehicle_num
+    #     elif not self.opt_time:
+    #         return travel_path, travel_distance, vehicle_num
+
+    def get_current_path_section(self, path):
+        for idx, order in reversed(list(enumerate(path))):
+            if order == 0:
+                current_path_section = path[idx:]
+                return current_path_section
+    
+    def _check_condition(self, travel_path, next_index, service_time_mat, order_id, path_section= True, minutes_per_km=1) -> bool:
+        temp_travel_path = travel_path.copy()
+        temp_travel_path.append(next_index)
+        
+        if path_section:
+            temp_travel_path = self.get_current_path_section(temp_travel_path)
+        temp_travel_path.append(0)
+        tour = temp_travel_path
+
+        # test = [0, 77, 78, 83, 85, 0]
+        # tour = test
+        time = 0
+        counter = 0
+        for i in range(1, len(tour)):
+            traffic_phase = "off_peak" if time < prep_cfg.traffic_times["phase_transition"][
+                "from_shift_start"] else "phase_transition" if time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
+
+            
+            if(order_id[tour[i-1]] != 'order_0'):
+                if(self.all_nodes[tour[i-1]].ready_time  <= (time + service_time_mat[order_id[tour[i-1]]+":"+traffic_phase])):
+                    time = time + \
+                        service_time_mat[order_id[tour[i-1]]+":"+traffic_phase] + \
+                        self.node_dist_mat[tour[i-1]][tour[i]]*minutes_per_km
+                else:
+                    time = self.all_nodes[tour[i-1]].ready_time + \
+                        self.node_dist_mat[tour[i-1]][tour[i]]*minutes_per_km
+            else:
+                if(self.all_nodes[tour[i-1]].ready_time <= time):
+                    time = time + \
+                        self.node_dist_mat[tour[i-1]][tour[i]]*minutes_per_km
+            if (time <= self.all_nodes[tour[i]].due_time):
+                counter += 1
+            else:
+                break
+        
+        orders_no_depot = [i for i in tour if i != 0]
+
+        # if counter == len(orders_no_depot):
+        if counter == len(tour) - 1:
+            return True
+        else:
+            return False
+        
+        # temp_travel_path = travel_path.copy()
+        # temp_travel_path.append(next_index)
+        # temp_travel_path.append(0)
+        # temp_travel_time = 0
+        # current_time = 0
+
+        # for i in range(0, len(temp_travel_path)-1):
+        #     dist = self.node_dist_mat[temp_travel_path[i]][temp_travel_path[i+1]]*minutes_per_km
+        #     if temp_travel_path[i] != 0:
+        #         wait_time = max(self.all_nodes[temp_travel_path[i+1]].ready_time - current_time - dist, 0)
+        #         current_time += dist + wait_time
+        #     else:
+        #         wait_time = 0
+        #         current_time = max(self.all_nodes[temp_travel_path[i+1]].ready_time, dist)
+
+        #     service_time = VrptwGraph.get_service_time(temp_travel_path[i+1], self.service_time_matrix, 
+        #                                                     current_time, self.order_ids)
+
+        #     if self.all_nodes[temp_travel_path[i+1]].due_time < current_time:
+        #         return False
+
+        #     current_time += service_time
+            
+
+        #     temp_travel_time += dist + wait_time + service_time
+            
+        # # dist_depot = self.graph.node_dist_mat[temp_travel_path[i+1]][0]*minutes_per_km
+        # if current_time > cfg.capacity:
+        #     return False
+
+        # # think this can be deleted
+        # if temp_travel_time > cfg.capacity:
+        #     return False
+
+        # return True
+    
     def nearest_neighbor_heuristic(self, max_vehicle_num=None):
         index_to_visit = []
 
@@ -382,96 +528,41 @@ class VrptwGraph:
                 index_to_visit.append(i)
 
         current_index = 0
-        current_load = 0
-        current_time = 0
         travel_distance = 0
-        travel_path = [0]
-        time_travelled = 0
-        time_dict = {}
-        veh_num = -1
-        # test_dict = {}
+        total_travel_path = [0]
+        current_tour = [0]
 
         if max_vehicle_num is None:
             max_vehicle_num = self.node_num
 
         while len(index_to_visit) > 0 and max_vehicle_num > 0:
-            nearest_next_index = self._cal_nearest_next_index(index_to_visit, current_index, current_load, current_time)
+            nearest_next_index = self._cal_nearest_next_index(index_to_visit, current_index, current_tour)
+         
             if nearest_next_index is None:
-                travel_distance += self.node_dist_mat[current_index][0]
-                if self.opt_time:
-                    time_travelled += self.node_dist_mat[current_index][0]*self.minutes_per_km
-                current_load = 0
-                current_time = 0
-                travel_path.append(0)
+                total_travel_path.append(0)
                 current_index = 0
-                
-
                 max_vehicle_num -= 1
+                current_tour = [0]
+    
             else:
-                # MOD: Marlene
-                if self.opt_time:
-                    if current_index == 0:
-                        if veh_num >= 0:
-                            time_dict[veh_num] = time_travelled  
-                            # test_dict[veh_num_test] = test_path
-                        veh_num += 1
-                        time_travelled = 0
-                        # test_path = []
-                current_load += self.all_nodes[nearest_next_index].demand + self.node_dist_mat[current_index][nearest_next_index]
-
-                dist = self.node_dist_mat[current_index][nearest_next_index]
-
-                # MOD: Marlene
-                if self.source == 'r':
-                    # wait time only when driver is not at depot
-                    if current_index != 0:
-                        wait_time = max(self.all_nodes[nearest_next_index].ready_time - current_time - dist, 0)
-                        current_time += dist*self.minutes_per_km + wait_time
-                        service_time = VrptwGraph.get_service_time(nearest_next_index, self.service_time_matrix, 
-                                                                current_time, self.order_ids)
-                        current_time += service_time
-                    elif current_index == 0:
-                        wait_time = 0
-                        current_time = max(self.all_nodes[nearest_next_index].ready_time, dist*self.minutes_per_km)
-                        service_time = VrptwGraph.get_service_time(nearest_next_index, self.service_time_matrix, 
-                                                                current_time, self.order_ids)
-                        current_time += service_time
-
-                    
-                elif self.source == 't':
-                    wait_time = max(self.all_nodes[nearest_next_index].ready_time - current_time - dist, 0)
-                    service_time = self.all_nodes[nearest_next_index].service_time
-                    current_time += dist*self.minutes_per_km + wait_time + service_time
-
+                total_travel_path.append(nearest_next_index)
+                current_tour.append(nearest_next_index)
+                current_load, current_time = self._get_total_travel_time(total_travel_path, True)
                 index_to_visit.remove(nearest_next_index)
-
-                travel_distance += self.node_dist_mat[current_index][nearest_next_index]
-                if self.opt_time:
-                        time_travelled += dist*self.minutes_per_km + wait_time + service_time
-                travel_path.append(nearest_next_index)
-                # test_path.append(nearest_next_index)
                 current_index = nearest_next_index
+   
 
-        # 最后要回到depot
-        # And finally, back to the depot.
-        travel_distance += self.node_dist_mat[current_index][0]
+        total_travel_path.append(0)
+        travel_time = self._get_total_travel_time(total_travel_path)
+        travel_distance = self._cal_total_travel_distance(total_travel_path) 
+
+        vehicle_num = total_travel_path.count(0)-1
         if self.opt_time:
-            time_travelled += self.node_dist_mat[current_index][0]*self.minutes_per_km 
-            time_dict[veh_num] = time_travelled
-            total_time_travelled = sum(time_dict.values())
-            # test_dict[veh_num_test] = test_path
-        travel_path.append(0)
-        
-        vehicle_num = travel_path.count(0)-1
-        if self.opt_time:
-            test = self._get_total_travel_time(travel_path)
-            # test2 = get_total_travel_time(travel_path, self.node_dist_mat, ready_time, service_time_matrix, order_ids, )
-            
-            return travel_path, total_time_travelled, vehicle_num
+            return total_travel_path, travel_time, vehicle_num
         elif not self.opt_time:
-            return travel_path, travel_distance, vehicle_num
+            return total_travel_path, travel_distance, vehicle_num
 
-    def _cal_nearest_next_index(self, index_to_visit, current_index, current_load, current_time):
+    def _cal_nearest_next_index(self, index_to_visit, current_index, travel_path, minutes_per_km=1):
         '''
         找到最近的可达的next_index Find the nearest reachable next_index
         :param index_to_visit:
@@ -479,40 +570,29 @@ class VrptwGraph:
         '''
         nearest_ind = None
         nearest_distance = None
+        nearest_travel_time = None
         for next_index in index_to_visit:
-            if current_load + self.all_nodes[next_index].demand + self.node_dist_mat[current_index][next_index] > self.vehicle_capacity:
-                continue
+            # if len(travel_path) > 20:
+            #     print('')
+            test_path = travel_path.copy()
+            test_path.append(next_index)
+            test_path.append(0)
+            # split path at 0 for 
 
-            dist = self.node_dist_mat[current_index][next_index]
-            wait_time = max(self.all_nodes[next_index].ready_time - current_time - dist, 0)
-
-            # MOD: Marlene
-            if self.source == 't':
-                service_time = self.all_nodes[next_index].service_time
-            elif self.source == 'r':
-                temp_current_time = current_time + dist + wait_time
-                service_time = VrptwGraph.get_service_time(next_index, self.service_time_matrix, temp_current_time,
-                                                        self.order_ids)
-
-            
-            # 检查访问某一个旅客之后，能否回到服务店
-            # Checking to see if you can return to the depot after visiting a particular customer.
-            if current_time + dist + wait_time + service_time + self.node_dist_mat[next_index][0] > \
-                    self.all_nodes[0].due_time:
-                continue
-
-            # 不可以服务due time之外的旅客
-            # No service for customers outside of due time.
-            if current_time + dist > self.all_nodes[next_index].due_time:
+            time_check = self._check_condition(travel_path, next_index, self.service_time_matrix, self.order_ids)
+            if not time_check:
                 continue
             
-            if not self.opt_time_next_index:
-                if nearest_distance is None or self.node_dist_mat[current_index][next_index] < nearest_distance:
-                    nearest_distance = self.node_dist_mat[current_index][next_index]
+            travel_time = self.node_dist_mat[current_index][next_index] * minutes_per_km
+            travel_distance = self.node_dist_mat[current_index][next_index]
+            
+            if not self.opt_time:
+                if nearest_distance is None or travel_distance < nearest_distance:
+                    nearest_distance = travel_distance
                     nearest_ind = next_index
-            elif self.opt_time_next_index:
-                if nearest_distance is None or self.node_dist_mat[current_index][next_index] + wait_time < nearest_distance:
-                    nearest_distance = self.node_dist_mat[current_index][next_index]
+            elif self.opt_time:
+                if nearest_travel_time is None or travel_time < nearest_travel_time:
+                    nearest_travel_time = self.node_dist_mat[current_index][next_index]
                     nearest_ind = next_index
 
         return nearest_ind

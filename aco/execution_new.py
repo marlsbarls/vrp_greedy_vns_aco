@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import pandas as pd
 import time
-from datetime import date
+from datetime import date, datetime
 from aco.analysis_available_time import AnalysisAvailableTime
 from vns.src.helpers.DistanceMatrix import DistanceMatrix
 
@@ -28,11 +28,12 @@ class Execution():
         self.beta = 1  # 2
         self.q0 = 0.9  # 0.5
         self.total_given_time = 15 # original
+        # self.total_given_time = 2
         if self.dynamic == 'static': 
             self.total_given_time = 480
-        # self.total_given_time = 15
-        # self.show_figure = True
         self.show_figure = False
+        now = datetime.now()
+        self.date_time = now.strftime("%d-%m-%Y_%H:%M:%S")
         self.folder_name_handover = 'aco/handover'
         self.file_name_handover = 'handover.txt'
 
@@ -50,17 +51,20 @@ class Execution():
         self.minutes_per_km = 1
         self.vehicles = 25
         
-        # quick test
-        self.total_given_time = 1
-        self.interval_length = 1
+        # # quick test
+        # self.total_given_time = 1
+        # self.interval_length = 160
+        # self.ants_num = 1
+        # # self.interval_length = 21
+        # # self.shift_length = 42  # 8 hours = 480
 
         # Mod: Marlene 
         # opt_time = True minimizes travel time instead of travel distance
         # original = False
         self.opt_time = True 
+        # self.improvement_counter = 0
         # self.opt_time = False
-        if self.source == 't':
-            self.opt_time = False
+        
 
         ###
         # self.folder_name_original_dp = 'aco/files_unprepared'
@@ -111,6 +115,7 @@ class Execution():
             self.run_macs()
 
     def run_macs(self):
+        self.exp_id = 0
         # Input files
         if self.source == 'r':
             folder_name_target_pp = 'input_data/surve_mobility/orders'
@@ -120,8 +125,15 @@ class Execution():
             folder_name_target_pp = 'input_data/solomon/orders'
             self.folder_name_testfile = folder_name_target_pp
            
-        self.result_df = pd.DataFrame(columns=[
-        'parameters', 'cost per driver', 'cost per hour', 'final_cost', 'idle_time', 'tour_length', 'vehicle_number', 'runtime', 'final_tour'])
+        # self.result_df = pd.DataFrame(columns=[
+        # 'parameters', 'cost per driver', 'cost per hour', 'final_cost', 'idle_time', 'tour_length', 'vehicle_number', 'runtime', 'final_tour'])
+        if self.opt_time:
+            self.result_df = pd.DataFrame(columns=[
+            'parameters', 'cost per driver', 'cost per hour', 'travel_time_comp', 'final_cost', 'idle_time', 'tour_length', 'vehicle_number', 'runtime', 'final_tour'])
+        else: 
+            self.result_df = pd.DataFrame(columns=[
+            'parameters', 'cost per driver', 'cost per hour', 'final_cost', 'idle_time', 'tour_length', 'vehicle_number', 'runtime', 'final_tour'])
+
         #  Run MACS and Update Process alternately, Update Process is last executed prior to the last execution of MACS
         if self.intervals(self.shift_length, self.interval_length):
             intervals = int(self.shift_length//self.interval_length)
@@ -147,38 +159,35 @@ class Execution():
                     order_ids = all_orders_df['order_id'].values.tolist()
                 
                 
-                today = date.today()
-                date_today = today.strftime("%b-%d-%Y")
                 target_folder_results = os.path.join(
-                dir_name, "results", "aco", self.data_type, file_name.partition('_')[0], self.dynamic, date_today)
+                dir_name, "results", "aco", self.data_type, file_name.partition('_')[0], self.dynamic, self.date_time)
                 Path(target_folder_results).mkdir(parents=True, exist_ok=True)
                 folder_name_result = target_folder_results
+                self.parameters['Result Folder'] = target_folder_results
+
 
                 path_testfile = os.path.join(self.folder_name_testfile, file_name)
                 path_visualization = os.path.join(folder_name_result, 'visualization')
                 Path(path_visualization).mkdir(parents=True, exist_ok=True)
 
-
-                path_handover = os.path.join(self.folder_name_handover, self.file_name_handover)
+                path_handover_test = os.path.join(self.folder_name_handover, self.date_time)
+                Path(path_handover_test).mkdir(parents=True, exist_ok=True)
+                path_handover = os.path.join(path_handover_test, self.file_name_handover)
                 main_folder = os.path.dirname(os.path.realpath(__file__)).split('aco')[0]
                 path_map = os.path.join(main_folder, self.folder_name_map, self.file_name_map)
 
                 for i in range(0, intervals+1):
                     time_slice = i
 
-                    if self.source == 'r':
-                        graph = VrptwGraph(path_testfile, path_handover, time_slice, self.source, self.minutes_per_km, service_time_matrix, 
-                                           order_ids, test_type=self.dynamic, opt_time=self.opt_time)
-                        macs = MultipleAntColonySystem(graph, source=self.source, path_handover=path_handover, path_map=path_map, 
-                                                       folder_name_result=folder_name_result, result_df=self.result_df, parameter=self.parameters, ants_num=self.ants_num, alpha=self.alpha, beta=self.beta, 
-                                                       q0=self.q0, time_slice=time_slice, whether_or_not_to_show_figure=self.show_figure, 
-                                                       service_time_matrix=service_time_matrix, order_ids=order_ids, opt_time=self.opt_time)
-                    elif self.source == 't':
-                        graph = VrptwGraph(path_testfile, path_handover, time_slice, self.source, self.minutes_per_km, 
-                                           test_type=self.dynamic)
-                        macs = MultipleAntColonySystem(graph, source=self.source, path_handover=path_handover, path_map=path_map,
-                                                       folder_name_result=folder_name_result, result_df=self.result_df, parameter=self.parameters, ants_num=self.ants_num, alpha=self.alpha, 
-                                                       beta=self.beta, q0=self.q0, time_slice=time_slice, whether_or_not_to_show_figure=self.show_figure)
+                    
+                    graph = VrptwGraph(file_path=path_testfile, path_handover=path_handover, time_slice=time_slice, 
+                                        source=self.source, minutes_per_km=self.minutes_per_km, opt_time=self.opt_time,
+                                        service_time_matrix=service_time_matrix, order_ids=order_ids, test_type=self.dynamic)
+                    macs = MultipleAntColonySystem(graph=graph, source=self.source, path_handover=path_handover, path_map=path_map, 
+                                                    folder_name_result=folder_name_result, result_df=self.result_df, parameter=self.parameters, ants_num=self.ants_num, alpha=self.alpha, beta=self.beta, 
+                                                    q0=self.q0, time_slice=time_slice, whether_or_not_to_show_figure=self.show_figure, exp_id=self.exp_id,
+                                                    service_time_matrix=service_time_matrix, order_ids=order_ids, opt_time=self.opt_time)
+
 
                     macs.run_multiple_ant_colony_system(total_given_time=self.total_given_time)
 
@@ -205,8 +214,5 @@ class Execution():
         else:
             print("ERROR: working_day_intervals must be divisor of shift_length")
 
-
-# execution = Execution()
-# execution.run_data_prep()
-# execution.run_macs()
+        
 

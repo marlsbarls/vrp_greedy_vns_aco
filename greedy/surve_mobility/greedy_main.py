@@ -25,14 +25,12 @@ class Greedy:
         self.source = source
 
     def run_greedy(self):
-        # pd.set_option("display.max_colwidth", 10000)
         dir_name = os.path.dirname(os.path.realpath('__file__'))
         file_names = self.test_files
 
         for file in file_names:
             file_name = os.path.join(
                         dir_name, 'input_data', self.source, 'orders', file + '_orders.csv')
-
             all_orders_df = pd.read_csv(file_name)
 
             travel_time_matrix_with_orderids = DistanceMatrix.load_file(os.path.join(
@@ -42,16 +40,13 @@ class Greedy:
 
             travel_time_matrix = get_travel_time_matrix(len(all_orders_df)-1, all_orders_df['XCOORD'], all_orders_df['YCOORD'], all_orders_df['XCOORD_END'], all_orders_df['YCOORD_END'])
 
-            print('')
             print(f'Current file: {file}')
             print('Running greedy algorithm')
             
             greedy = GreedyAlgorithm(self.test_type, self.source, all_orders_df, travel_time_matrix, travel_time_matrix_with_orderids, service_time_matrix)
-            result_tuple = greedy.run_greedy()
+            result_df = greedy.run_greedy()
 
-            result_file_path = dir_name + '/results/greedy/surve_mobility/' + file + '_' + self.test_type + '.txt' 
-            f = open(result_file_path, 'w')
-            separator = '\n'
-            f.write(separator.join(result_tuple))
-            f.close()
+            result_file_path = dir_name + '/results/greedy/surve_mobility/' + file + '_' + self.test_type + '.csv' 
+            result_df.to_csv(result_file_path)
+
                             

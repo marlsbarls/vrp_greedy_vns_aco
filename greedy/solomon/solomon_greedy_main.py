@@ -24,25 +24,14 @@ class Greedy:
         self.source = source
 
     def run_greedy(self):
-        # pd.set_option("display.max_colwidth", 10000)
         dir_name = os.path.dirname(os.path.realpath('__file__'))
         file_names = self.test_files
-        # test_name = "dynamic_solution_retry"
-        # test_type = "dynamic"  # static or dynamic
-        # only relevant if testtype = static: validation or experimentation
-        # static_type = "experimentation"
 
-        for file in file_names:           
+        for file in file_names:
             file_name = os.path.join(
                         dir_name, 'input_data', self.source, 'orders', file + '_orders.csv')
-
             all_orders_df = pd.read_csv(file_name)
             all_orders_df['CUST_NO'] = all_orders_df['CUST_NO'].apply(lambda x: x - 1)
-
-            print('')
-            print(f'Current file: {file}')
-            print('Running greedy algorithm')
-
             xcoor = all_orders_df['XCOORD'].to_numpy()
             ycoor = all_orders_df['YCOORD'].to_numpy()
 
@@ -52,19 +41,16 @@ class Greedy:
                 for j in range(cust_size + 1):
                     dist_matrix[i][j] = np.sqrt(
                         (xcoor[i] - xcoor[j]) ** 2 + (ycoor[i] - ycoor[j]) ** 2)
-            
             service_times = all_orders_df['SERVICETIME'].to_numpy()
-            # capacity = all_orders_df['CAPACITY'][0]
 
-
+                      
+            print(f'Current file: {file}')
+            print(f'Running greedy algorithm {self.test_type}')
             greedy = GreedyAlgorithm(self.test_type, self.source, all_orders_df, dist_matrix, service_times)
 
-            result_tuple = greedy.run_greedy()
+            result_df = greedy.run_greedy()
 
-            # result_file_path = os.path.join(dir_name, '/results/', file, '_', self.test_type, '.txt' )
-            result_file_path = dir_name + '/results/greedy/solomon/' + file + '_' + self.test_type + '.txt' 
-            f = open(result_file_path, 'w')
-            separator = '\n'
-            f.write(separator.join(result_tuple))
-            f.close()
-        
+            result_file_path = dir_name + '/results/greedy/solomon/' + file + '_' + self.test_type  + '.csv'
+            result_df.to_csv(result_file_path)
+
+            

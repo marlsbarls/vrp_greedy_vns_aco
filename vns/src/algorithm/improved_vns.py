@@ -161,7 +161,35 @@ def idle_time(tours, travel_time_matrix, service_time, ready_time, order_ids, in
         total_idle_time += tour_idle_time
     return total_idle_time
 
+# def time_checker(tour, travel_time_matrix, service_time_matrix, ready_time, due_time, order_ids):
+#     cur_time = 0
+#     for i in range(len(tour) - 1):
+#         traffic_phase = "off_peak" if cur_time < prep_cfg.traffic_times["phase_transition"][
+#         "from_shift_start"] else "phase_transition" if cur_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
+#         dist = travel_time_matrix[tour[i]][tour[i + 1]]
+#         if i == 0:
+#             wait_time = 0
+#             cur_time = max(ready_time[tour[i+1]], dist)
 
+#             if cur_time > due_time[tour[i+1]]:
+#                 return False
+#         else:
+#             service_time = service_time_matrix[order_ids[tour[i]]+":" +
+#                                         traffic_phase]
+            
+#             wait_time = max(ready_time[tour[i+1]]-cur_time - dist, 0)
+#             cur_time += dist + wait_time + service_time
+
+#             if cur_time > due_time[tour[i+1]]:
+#                 return False
+        
+#     if cur_time > cfg.capacity:
+#         return False
+#     else:
+#         return True
+
+
+# # original
 def time_checker(tour, travel_time, service_time, ready_time, due_time, order_id):
     time = 0
     counter = 0
@@ -397,6 +425,120 @@ def create_planning_df(tours, current_order_df, travel_time_matrix, service_time
             planning_df.at[tour[i], 'SCHEDULED_TOUR'] = tour_id
 
         tour_id += 1
+
+    return planning_df
+
+
+def create_planning_df_new(tours, all_orders_df, service_time_matrix, ready_time, order_ids, due_time, planning_df=None):
+    if planning_df is None:
+        planning_df = all_orders_df[[
+            'SERVICETIME']].copy(deep=True)
+        # planning_df['VISITED'] = False
+        planning_df['SCHEDULED_TIME_1'] = np.NaN
+        planning_df['SCHEDULED_TIME_2'] = np.NaN
+        planning_df['DUE_TIME'] = all_orders_df['DUETIME']
+        planning_df['READY_TIME'] = all_orders_df['READYTIME']
+        planning_df['TIME_CHECK'] = False
+        planning_df['SCHEDULED_TOUR'] = np.NaN
+    travel_time_matrix = get_travel_time_matrix(len(all_orders_df)-1, all_orders_df['XCOORD'], all_orders_df['YCOORD'], all_orders_df['XCOORD_END'], all_orders_df['YCOORD_END'])
+
+    tour_id = 0
+    for tour in tours:
+        cur_time = 0
+        for i in range(len(tour) - 1):
+            traffic_phase = "off_peak" if cur_time < prep_cfg.traffic_times["phase_transition"][
+            "from_shift_start"] else "phase_transition" if cur_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
+            dist = travel_time_matrix[tour[i]][tour[i + 1]]
+            if tour[i] == 0:
+                wait_time = 0
+                cur_time = max(ready_time[tour[i+1]], dist)
+                planning_df.at[tour[i], 'SCHEDULED_TIME_1'] = 0
+
+                # if cur_time > due_time[tour[i+1]]:
+                #     return False
+            else:
+                service_time = service_time_matrix[order_ids[tour[i]]+":" +
+                                            traffic_phase]
+                
+                wait_time = max(ready_time[tour[i+1]]-cur_time - dist, 0)
+                cur_time += dist + wait_time 
+
+                # if cur_time > due_time[tour[i+1]]:
+                #     return False
+            
+                planning_df.at[tour[i], 'SCHEDULED_TIME_1'] = round(cur_time, 2)
+                if planning_df.at[tour[i], 'SCHEDULED_TIME_1'] > planning_df.at[tour[i], 'DUE_TIME']:
+                        planning_df.at[tour[i], 'TIME_CHECK'] = False
+                else:
+                        planning_df.at[tour[i], 'TIME_CHECK'] = True
+
+                planning_df.at[tour[i], 'SCHEDULED_TOUR'] = tour_id
+                cur_time += service_time
+
+    tour_id += 1
+
+    # tour_id = 0
+    
+    for tour in tours:
+        current_time = 0
+        for i in range(0, len(tour)-1):
+            traffic_phase = "off_peak" if current_time < prep_cfg.traffic_times["phase_transition"][
+            "from_shift_start"] else "phase_transition" if current_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
+            dist = travel_time_matrix[tour[i]][tour[i+1]]
+            if tour[i] != 0:
+                wait_time = max(ready_time[tour[i+1]] - current_time - dist, 0)
+                current_time += dist + wait_time
+
+                service_time = service_time = service_time_matrix[order_ids[tour[i]]+":" +
+                                                traffic_phase]
+                
+            else:
+                wait_time = 0
+                current_time = max(ready_time[tour[i+1]], dist)
+                service_time = 0
+
+                
+            planning_df.at[tour[i], 'SCHEDULED_TIME_2'] = current_time
+            current_time += service_time
+
+
+        # travel_time_matrix += dist + wait_time + service_time
+    
+
+
+    return planning_df
+            
+
+        
+    # tour_id = 0
+    # for tour in tours:
+    #     current_time = 0
+    #     travel_time = 0
+    #     for i in range(len(tour) - 1):
+    #         traffic_phase = "off_peak" if current_time < prep_cfg.traffic_times["phase_transition"][
+    #         "from_shift_start"] else "phase_transition" if current_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
+    #         if tour[i] == 0:
+    #             travel_time += travel_time_matrix[tour[i]][tour[i + 1]]
+    #             current_time += max(travel_time_matrix[tour[i]][tour[i + 1]], ready_time[tour[i+1]])
+    #         else:
+    #             travel_time += max(service_time_matrix[order_ids[tour[i]]+":" +
+    #                                     traffic_phase] + travel_time_matrix[tour[i]][tour[i + 1]], 
+    #                                     ready_time[tour[i+1]]-current_time)
+    #             current_time += max(service_time_matrix[order_ids[tour[i]]+":" +
+    #                                     traffic_phase] + travel_time_matrix[tour[i]][tour[i + 1]], 
+    #                                     ready_time[tour[i+1]]-current_time)
+        
+        
+
+    #         planning_df.at[tour[i], 'SCHEDULED_TIME'] = round(current_time, 2)
+    #         if planning_df.at[tour[i], 'SCHEDULED_TIME'] > planning_df.at[tour[i], 'DUE_TIME']:
+    #                 planning_df.at[tour[i], 'TIME_CHECK'] = False
+    #         else:
+    #                 planning_df.at[tour[i], 'TIME_CHECK'] = True
+
+    #         planning_df.at[tour[i], 'SCHEDULED_TOUR'] = tour_id
+
+    #     tour_id += 1
 
     return planning_df
 
@@ -668,7 +810,36 @@ def remove_empty_tours(Sub_tour):
 
 
 def shaking(Input_tour, travel_time, service_time, ready_time, due_time, demand, neighbourhood, capacity, order_ids, visibility):
+    # test = [[0, 132, 2, 129, 63, 134, 74, 128, 130, 3, 120, 8, 126, 68, 67, 136, 137, 79, 95, 142, 143, 87, 131, 108,
+    #  133, 80, 6, 0], [0, 124, 105, 114, 115, 116, 66, 64, 7, 4, 93, 94, 83, 9, 1, 90, 101, 125, 76, 113, 140, 112, 
+    #  75, 5, 138, 0], [0, 65, 98, 109, 62, 61, 97, 127, 86, 118, 85, 88, 73, 122, 102, 119, 123, 117, 82, 104, 77, 
+    #  91, 103, 106, 100, 141, 139, 121, 70, 72, 99, 0], [0, 135, 92, 81, 84, 96, 89, 58, 60, 13, 36, 41, 37, 20, 23, 44, 
+    #  54, 32, 47, 27, 21, 24, 29, 34, 15, 38, 25, 0], [0, 111, 78, 110, 17, 43, 35, 53, 16, 39, 11, 42, 52, 10, 28, 31, 
+    #  26, 55, 45, 48, 59, 14, 40, 33, 50, 0], [0, 22, 12, 46, 30, 18, 19, 51, 56, 57, 71, 107, 69, 49, 0]]
+    # test = [[0, 35, 38, 43, 15, 31, 42, 29, 61, 11, 80, 81, 9, 10, 12, 13, 53, 105, 6, 25, 0], 
+    #         [0, 33, 36, 37, 28, 26, 7, 70, 20, 22, 75, 76, 27, 3, 59, 71, 87, 79, 0], [0, 50, 51, 34, 
+    #          63, 68, 44, 32, 84, 82, 86, 101, 90, 30, 103, 72, 8, 0], [0, 77, 78, 83, 85, 0], [0, 
+    #          1, 47, 21, 49, 54, 62, 48, 14, 18, 73, 102, 96, 98, 2, 0], [0, 55, 56, 57, 65, 69, 
+    #          67, 19, 16, 24, 40, 45, 23, 89, 74, 0], [0, 58, 64, 66, 0], [0, 88, 95, 92, 91, 99, 104, 
+    #          106, 107, 17, 93, 0], [0, 94, 41, 46, 39, 4, 5, 0], [0, 100, 60, 52, 97, 0]]
 
+    # test = [[0, 49, 55, 47, 48, 40, 46, 39, 50, 63, 64, 42, 0], [0, 32, 29, 22, 24, 25, 41, 8, 9, 12, 52, 93, 82, 86, 44, 
+    # 71, 27, 0], [0, 65, 68, 77, 80, 75, 76, 83, 96, 92, 117, 101, 56, 26, 124, 0], [0, 33, 36, 69, 70, 66, 62, 79, 2, 18, 13,
+    #  10, 19, 17, 7, 6, 11, 112, 0], [0, 21, 51, 28, 54, 3, 4, 20, 15, 16, 1, 14, 73, 116, 5, 74, 134, 113, 88, 0], [0, 
+    #  61, 37, 57, 38, 35, 30, 0], [0, 85, 90, 43, 67, 102, 87, 109, 59, 0], [0, 78, 81, 84, 91, 97, 108, 100, 98, 60, 53, 127, 
+    #  58, 107, 0], [0, 115, 72, 89, 45, 106, 0], [0, 95, 99, 105, 23, 103, 119, 125, 110, 121, 111, 0], [0, 133, 135, 136, 31, 0],
+    #  [0, 94, 34, 118, 120, 122, 104, 114, 137, 128, 0], [0, 126, 130, 129, 123, 0], [0, 131, 132, 0]]
+    # time1 = time_checker(test[0], travel_time, service_time, ready_time, due_time, order_ids)
+    # time2 = time_checker(test[1], travel_time, service_time, ready_time, due_time, order_ids)
+    # time3 = time_checker(test[2], travel_time, service_time, ready_time, due_time, order_ids)
+    # time4 = time_checker(test[3], travel_time, service_time, ready_time, due_time, order_ids)
+    # time5 = time_checker(test[4], travel_time, service_time, ready_time, due_time, order_ids)
+    # time6 = time_checker(test[5], travel_time, service_time, ready_time, due_time, order_ids)
+    # time6 = time_checker(test[6], travel_time, service_time, ready_time, due_time, order_ids)
+    # time6 = time_checker(test[7], travel_time, service_time, ready_time, due_time, order_ids)
+    # time6 = time_checker(test[8], travel_time, service_time, ready_time, due_time, order_ids)
+    # time6 = time_checker(test[9], travel_time, service_time, ready_time, due_time, order_ids)
+    
     Sub_tour = copy.deepcopy(Input_tour)
     shaking_start = time.time()
 
@@ -838,7 +1009,7 @@ def shaking(Input_tour, travel_time, service_time, ready_time, due_time, demand,
 
 
 # Main Function to run VNS
-def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, result_path, stop_event, is_exp=False, **exp_params):
+def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, result_path, test_type, stop_event, is_exp=False, **exp_params):
     '''---------------------------------------------------------------
     Experiment section: Set parameters, if current run is an experiment
     ------------------------------------------------------------------'''
@@ -907,14 +1078,12 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, res
     ---------------------------------------------------------------'''
     # Output creation
     if(not is_exp):
-        # target_folder = os.path.join(
-        #     dir_name, "results", "vns", "surve_mobility", file)
         Path(result_path).mkdir(parents=True, exist_ok=True)
-        outputfile = open(os.path.join(
-            result_path, 'output.txt'), 'w')
-        outputfile.write(f'File: {file} Customer_Size:{cust_size} \n')
-        outputfile.write(
-            f'Iteration:0 Distance initial tour:{total_cost(ini_tour, travel_time_matrix, servicetime, readytime, order_ids)} Number of routes initial tour {len(ini_tour)}  \n')
+        # outputfile = open(os.path.join(
+        #     result_path, 'output.txt'), 'w')
+        # outputfile.write(f'File: {file} Customer_Size:{cust_size} \n')
+        # outputfile.write(
+        #     f'Iteration:0 Distance initial tour:{total_cost(ini_tour, travel_time_matrix, servicetime, readytime, order_ids)} Number of routes initial tour {len(ini_tour)}  \n')
 
     print('Start', file, cust_size)
     print('0', initial_cost, len(ini_tour))
@@ -925,6 +1094,11 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, res
     # MAINCODE
     
     max_restarts = cfg.vns['MaxRestarts']
+    if test_type == 'dynamic':
+        max_runtime = cfg.vns['MaxRunTimeD']
+    elif test_type == 'static':
+        max_runtime = cfg.vns['MaxRunTimeS']
+    
 
     time_start_iteration = time.time()
     for counter in range(max_restarts):
@@ -991,7 +1165,7 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, res
                             k += 1
                             STOP = False
                 elif stop_event == 'time':
-                    if (time.time() - time_start_iteration)/60 > cfg.vns['MaxRunTime']:
+                    if (time.time() - time_start_iteration)/60 > max_runtime:
                         STOP = True
                         analysis_restarts.append(iterations if len(
                             analysis_restarts) == 0 else analysis_restarts[-1] + iterations)
@@ -1003,7 +1177,7 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, res
                             k += 1
                             STOP = False
                 elif stop_event == 'both':
-                    if ((time.time() - time_start_iteration)/60 > cfg.vns['MaxRunTime']) or iterations > cfg.vns['MaxIterations'] or NO_IMP > cfg.vns['MaxIterations_NoImp']:
+                    if ((time.time() - time_start_iteration)/60 > max_runtime) or iterations > cfg.vns['MaxIterations'] or NO_IMP > cfg.vns['MaxIterations_NoImp']:
                         STOP = True
                         analysis_restarts.append(iterations if len(
                             analysis_restarts) == 0 else analysis_restarts[-1] + iterations)
@@ -1033,10 +1207,10 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, res
         no_veh = len(Sub_tour_VNS)
         time_exe = time_end - time_start
         analysis_iterations_total += iterations
-        if(not is_exp):
-            outputfile.write(
-                f'Iteration: {counter + 1}, cost: {cost}, number of vehicles: {no_veh}, runtime VNS: {time_exe} \n')
-            outputfile.write(f'{Sub_tour_VNS} \n')
+        # if(not is_exp):
+        #     outputfile.write(
+        #         f'Iteration: {counter + 1}, cost: {cost}, number of vehicles: {no_veh}, runtime VNS: {time_exe} \n')
+        #     outputfile.write(f'{Sub_tour_VNS} \n')
 
         print(counter + 1, cost, no_veh, time_exe)
 
@@ -1060,20 +1234,11 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, res
 
 
     if(is_exp):
-        # target_folder = os.path.join(
-        #     dir_name, "results", "vns", "surve_mobility", "experiments", file, exp_params["test_name"], "convergence")
         Path(os.path.join(result_path, 'convergence')).mkdir(parents=True, exist_ok=True)
         plt_path = f"exp_id_{exp_params['exp_id']}_convergence.png"
-        # plt.savefig("{}/results/vns/surve_mobility/experiments/{}/{}/convergence/{}.png".format(
-        #     dir_name, file, exp_params["test_name"], plt_path),format='png')
         plt.savefig(os.path.join(result_path, 'convergence', plt_path))
     else:
-        # target_folder = os.path.join(
-        #     dir_name, "results", "vns", "surve_mobility", file)
-        # Path(target_folder).mkdir(parents=True, exist_ok=True)
         plt_path = f"convergence_total.png"
-        # plt.savefig("%s/results/vns/surve_mobility/%s/visualization/%s.png" %
-        #             (dir_name, file, plt_path))
         Path(os.path.join(result_path, 'visualization')).mkdir(parents=True, exist_ok=True)
         plt.savefig(os.path.join(result_path, 'visualization', plt_path))
 
@@ -1093,22 +1258,12 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, res
     plt.legend()
 
     if(is_exp):
-        # target_folder = os.path.join(
-        #     dir_name, "results", "vns", "surve_mobility", "experiments", file, exp_params["test_name"], "convergence")
-        # Path(target_folder).mkdir(parents=True, exist_ok=True)
         plt_path = f"exp_id_{exp_params['exp_id']}_sim_annealing.png"
-        # plt.savefig("{}/results/vns/surve_mobility/experiments/{}/{}/convergence/{}.png".format(
-        #     dir_name, file, exp_params["test_name"], plt_path),format='png')
         plt.savefig(os.path.join(result_path, 'convergence', plt_path))
         
     
     else:
-        # target_folder = os.path.join(
-        #     dir_name, "results", "vns", "surve_mobility", file)
-        # Path(target_folder).mkdir(parents=True, exist_ok=True)
         plt_path = f"sim_annealing_total.png"
-        # plt.savefig("%s/results/vns/surve_mobility/%s/visualization/%s.png" %
-        #             (dir_name, file, plt_path))
         plt.savefig(os.path.join(result_path, 'visualization', plt_path))
 
     plt.close()
@@ -1124,13 +1279,13 @@ def run_vns(file, ini_tour, all_order_df, visibility, planning_df, interval, res
     return_runtime = sum(RUN_TIME)
     return_tour_length = total_distance(Sub_tour_VNS, travel_time_matrix)
 
-    if(not is_exp):
-        outputfile.write(
-            f'\nsmallest numb of veh: {min(NO_VEHICLE)} average numb vehicle:{np.mean(NO_VEHICLE)} std. deviation numb vehicle: {np.std(NO_VEHICLE)} \n')
-        outputfile.write(
-            f'smallest cost: {min(COST)}, average cost: {np.mean(COST)}, std. deviateion cost: {np.std(COST)}, average run time: {np.mean(RUN_TIME)} \n')
-        outputfile.write(f"==================== \n")
-        outputfile.close()
+    # if(not is_exp):
+    #     outputfile.write(
+    #         f'\nsmallest numb of veh: {min(NO_VEHICLE)} average numb vehicle:{np.mean(NO_VEHICLE)} std. deviation numb vehicle: {np.std(NO_VEHICLE)} \n')
+    #     outputfile.write(
+    #         f'smallest cost: {min(COST)}, average cost: {np.mean(COST)}, std. deviateion cost: {np.std(COST)}, average run time: {np.mean(RUN_TIME)} \n')
+    #     outputfile.write(f"==================== \n")
+    #     outputfile.close()
 
     print(min(COST), np.mean(COST), np.std(COST), np.mean(RUN_TIME))
     print("====================")

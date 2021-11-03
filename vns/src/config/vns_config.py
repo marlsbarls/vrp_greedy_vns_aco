@@ -4,6 +4,7 @@ cost_per_driver = 400
 minutes_per_kilometer = 2
 capacity = int(480)
 num_vehicles = int(25)
+greedy_time_weight = 0
 # capacity = 80
 
 shaking = {
@@ -30,12 +31,18 @@ vns = {
     "MaxRestarts": 7,
     "MaxIterations_NoImp": 50,
     "MaxIterations": 100,
-    "MaxRunTime": 15
-    # "MaxRunTime": 0.1
+    "MaxRunTimeD": 2,
+    "MaxRunTimeS": 480
+    
+    # "MaxRunTimeS": 0.1
+    # "MaxRunTimeS": 15
+
+    # "MaxRunTime": 0.1,
     # "InitialTemperature": 0,
     # "MaxRestarts": 1,
     # "MaxIterations_NoImp": 5,
     # "MaxIterations": 10
+
     # Static Experiement
     # "InitialTemperature": 0,
     # "MaxRestarts": 7*5,

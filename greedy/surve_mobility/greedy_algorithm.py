@@ -5,6 +5,7 @@ import vns.src.config.preprocessing_config as prep_cfg
 import time
 import os
 import numpy as np
+import pandas as pd
 import sys
 
 
@@ -29,7 +30,6 @@ class GreedyAlgorithm:
         elif self.test_type == 'static':
             self.available_time = np.asarray([0] * len(self.readytime))
             self.all_orders_df['AVAILABLETIME'] = 0
-
         self.duetime = self.all_orders_df['DUETIME'].to_numpy()
         self.order_ids = self.all_orders_df['order_id'].values.tolist()
         self.depot_id = 0
@@ -64,7 +64,7 @@ class GreedyAlgorithm:
                 if i[0] == current_order:
                     readytime_next_order = self.all_orders_df['READYTIME'][i[1]]
                     idle_time = readytime_next_order
-                    if i[2] + idle_time < shortest_travel_time:
+                    if (i[2] + idle_time*cfg.greedy_time_weight) < shortest_travel_time:
                         closest_order = i[1]
                         shortest_travel_time = i[2]
         else:
@@ -77,11 +77,10 @@ class GreedyAlgorithm:
                     else:
                         idle_time = readytime_next_order - ready_time_tour
 
-                    if i[2] + idle_time < shortest_travel_time:
+                    if (i[2] + idle_time*cfg.greedy_time_weight) < shortest_travel_time:
                         closest_order = i[1]
                         shortest_travel_time = i[2]
                    
-
         return closest_order
         
 
@@ -100,10 +99,16 @@ class GreedyAlgorithm:
         free_tours = [k for k,v in tour_capacity_reached.items() if v == False]
         return free_tours
 
-    def create_new_sub_tour(self, depot_id, tour_capacity_reached={}, Sub_tour=[]):
-        Sub_tour.append([depot_id, depot_id])
+    def create_new_sub_tour(self, depot_id, tour_capacity_reached={}, Sub_tour=[], create_new=True):
+        if create_new:
+            Sub_tour.append([depot_id, depot_id])
         tour_capacity_reached[len(Sub_tour)-1] = False
         return tour_capacity_reached, Sub_tour
+    
+    def create_new_sub_tour_time_slice(self, depot_id, tour_capacity_reached_time_slice={}, Sub_tour=[]):
+        Sub_tour.append([depot_id, depot_id])
+        tour_capacity_reached_time_slice[len(Sub_tour)-1] = False
+        return tour_capacity_reached_time_slice, Sub_tour
 
     def calculate_time_demand(self, tour):
         time = 0
@@ -153,15 +158,81 @@ class GreedyAlgorithm:
 
         return tour_capacity_reached, tour, Sub_tour, current_order
 
+    def update_full_tour_dynamic(self, tour_capacity_reached_time_slice, tour_capacity_reached, tour, depot_id, Sub_tour, capacity_reached):
+        # ASSUMPTION: once we have one order that would go over capacity or there is no more neighbours we declare tour as full
+        if capacity_reached:
+            tour_capacity_reached[tour] = True 
+        tour_capacity_reached_time_slice[tour] = True
+        free_tours = self.return_free_tours(tour_capacity_reached_time_slice)
+        if not free_tours: 
+            existing_tours = tour_capacity_reached.keys()
+            # create a new tour
+            tour = max(existing_tours) + 1
+            # tour_capacity_reached, Sub_tour = self.create_new_sub_tour(depot_id, tour_capacity_reached, Sub_tour)
+            tour_capacity_reached_time_slice, Sub_tour = self.create_new_sub_tour_time_slice(depot_id, tour_capacity_reached_time_slice, Sub_tour)
+            tour_capacity_reached, Sub_tour = self.create_new_sub_tour(depot_id, tour_capacity_reached, Sub_tour, False)
+            current_order = depot_id
+        else:
+            tour = min(free_tours)
+            current_order = Sub_tour[tour][-2]
 
-    def insert_new(self, depot_id, Sub_tour=[], tour_capacity_reached={}, visited=[], tour=0, planning_df=None, current_order=0, time=0, inital_solution=False):
+        return tour_capacity_reached_time_slice, tour_capacity_reached, tour, Sub_tour, current_order
+
+    def insert_new_dynamic(self, depot_id, Sub_tour=[], tour_capacity_reached={}, visited=[], tour=0, planning_df=None, 
+                   current_order=0, time=0, inital_solution=False):
         if inital_solution:
             Sub_tour = []
-            tour_capacity_reached={}
-            visited=[]
-            tour=0
-            planning_df=None
-            current_order=0
+            tour_capacity_reached = {}
+            visited = []
+            tour = 0
+            planning_df = None
+            current_order = 0
+
+        if not Sub_tour and not tour_capacity_reached:
+            tour_capacity_reached, Sub_tour = self.create_new_sub_tour(depot_id=depot_id, tour_capacity_reached=tour_capacity_reached,
+                                                                       Sub_tour=Sub_tour)
+        tour_capacity_reached_time_slice = tour_capacity_reached.copy()
+        planned = []
+        possible_travel_times = self.return_possible_travel_times(Sub_tour)
+        while len(planned) < len(self.current_order_df)-1:
+            next = self.closest_order(current_order, possible_travel_times, planning_df)
+            if not next:
+                tour_capacity_reached_time_slice, tour_capacity_reached, tour, Sub_tour, current_order = self.update_full_tour_dynamic(tour_capacity_reached_time_slice, tour_capacity_reached, tour,
+                                                                                                                depot_id, Sub_tour, False)
+                continue
+            temp_tour = deepcopy(Sub_tour[tour])
+            temp_tour.insert(len(temp_tour)-1, next)
+            time_check = time_checker(temp_tour, self.travel_time_matrix, self.service_time_matrix, self.readytime, self.duetime, self.order_ids)
+
+            if time_check:
+                if self.calculate_time_demand(temp_tour) >= 0:
+                    Sub_tour[tour].insert(len(Sub_tour[tour])-1, next)
+                    visited.append(next)
+                    planned.append(next)
+                    current_order = next
+                    possible_travel_times = self.remove_visited(current_order, possible_travel_times)
+                else:
+                    possible_travel_times = self.remove_impossible(possible_travel_times, current_order, next)
+                    tour_capacity_reached_time_slice, tour_capacity_reached, tour, Sub_tour, current_order = self.update_full_tour_dynamic(tour_capacity_reached_time_slice, tour_capacity_reached, tour,
+                                                                                             depot_id, Sub_tour, True)
+            else:
+                possible_travel_times = self.remove_impossible(possible_travel_times, current_order, next)
+                # tour_capacity_reached, tour, Sub_tour, current_order = self.update_full_tour(tour_capacity_reached, tour,
+                #                                                                              depot_id, Sub_tour, False)
+            
+            
+            planning_df = create_planning_df(Sub_tour, self.all_orders_df, self.travel_time_with_orderids, self.service_time_matrix, self.readytime, self.duetime)
+        
+        return Sub_tour, tour_capacity_reached, visited, tour, planning_df, current_order
+    def insert_new(self, depot_id, Sub_tour=[], tour_capacity_reached={}, visited=[], tour=0, planning_df=None, 
+                   current_order=0, time=0, inital_solution=False):
+        if inital_solution:
+            Sub_tour = []
+            tour_capacity_reached = {}
+            visited = []
+            tour = 0
+            planning_df = None
+            current_order = 0
 
         if not Sub_tour and not tour_capacity_reached:
             tour_capacity_reached, Sub_tour = self.create_new_sub_tour(depot_id=depot_id, tour_capacity_reached=tour_capacity_reached,
@@ -207,17 +278,21 @@ class GreedyAlgorithm:
         depot_id = 0
         self.current_order_df = self.all_orders_df[(
             self.all_orders_df.AVAILABLETIME <= timer)]
-  
-        Sub_tour, tour_capacity_reached, visited, tour_id, planning_df, last_order = self.insert_new(depot_id=0, Sub_tour=[], time=timer, inital_solution=True)
-        print(f'Total Cost: {total_cost(Sub_tour, self.travel_time_matrix, self.service_time_matrix, self.readytime, self.order_ids)}')
-        print (f'Tour: {Sub_tour}')
+        if self.test_type == 'static':
+            Sub_tour, tour_capacity_reached, visited, tour_id, planning_df, last_order = self.insert_new(depot_id=0, Sub_tour=[], time=timer, inital_solution=True)
+            print(f'Total Cost: {total_cost(Sub_tour, self.travel_time_matrix, self.service_time_matrix, self.readytime, self.order_ids)}')
+            print (f'Tour: {Sub_tour}')
         
         if self.test_type == 'dynamic':
-            for timer in range(60, 481, 60):
+            Sub_tour, tour_capacity_reached, visited, tour_id, planning_df, last_order = self.insert_new_dynamic(depot_id = 0, time=timer, inital_solution=True)
+            print(f'Total Cost: {total_cost(Sub_tour, self.travel_time_matrix, self.service_time_matrix, self.readytime, self.order_ids)}')
+
+            print (f'Tour: {Sub_tour}')
+            for timer in range(15, 481, 15):
                 print(f'Time: {timer}')
                 self.current_order_df = self.all_orders_df[(
                     self.all_orders_df.AVAILABLETIME <= timer) & (~self.all_orders_df['CUST_NO'].isin(visited))]
-                Sub_tour, tour_capacity_reached, visited, tour_id, planning_df, last_order = self.insert_new(depot_id, Sub_tour, tour_capacity_reached, visited, tour_id, planning_df, last_order, timer)
+                Sub_tour, tour_capacity_reached, visited, tour_id, planning_df, last_order = self.insert_new_dynamic(depot_id, Sub_tour, tour_capacity_reached, visited, tour_id, planning_df, last_order, timer)
                 print(Sub_tour)
                 print(total_cost(Sub_tour, self.travel_time_matrix, self.service_time_matrix, self.readytime, self.order_ids))
 
@@ -225,17 +300,18 @@ class GreedyAlgorithm:
         print('----------FINAL RESULT----------------')
         total_costs = total_cost(Sub_tour, self.travel_time_matrix, self.service_time_matrix, self.readytime, self.order_ids)
         travel_time = cal_total_time(Sub_tour, self.travel_time_matrix, self.service_time_matrix, self.readytime, self.order_ids)
+        distance = total_distance(Sub_tour, self.travel_time_matrix)
         print(f'Total Cost: {total_cost(Sub_tour, self.travel_time_matrix, self.service_time_matrix, self.readytime, self.order_ids)}')
         print(f'Tour:\n {Sub_tour}')
         print(f'total run time: {time_end-time_start}')
         print('end')
 
+        result_df = pd.DataFrame(columns=[
+            'total_cost', 'travel_time', 'distance', 'vehicle_number', 'runtime', 'final_tour'])
         
-        result_tuple = ('path: '+str(Sub_tour), 'distance: '+str(total_distance(Sub_tour, self.travel_time_matrix)), 
-                                              'vehicle_num: '+str(len(Sub_tour)), 'costs: '+str(total_costs), 
-                                              'travel time: '+str(travel_time), str([]))
-        
-        return result_tuple
+        result_df.loc[len(result_df.index)] = [total_costs, travel_time, distance, len(Sub_tour), (time_end-time_start)/60, Sub_tour]
+
+        return result_df
 
         
 

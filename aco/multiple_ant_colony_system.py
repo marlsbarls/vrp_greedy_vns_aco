@@ -21,8 +21,9 @@ import os
 
 # MOD: Arguments source, path_handover, path_map, folder_name_result, alpha and time_slice passed from execution file
 class MultipleAntColonySystem:
-    def __init__(self, graph: VrptwGraph, source, path_handover, path_map, folder_name_result, result_df, parameter, service_time_matrix=None, order_ids=None, ants_num=10, alpha=1,
-                 beta=1, q0=0.1, time_slice=0, whether_or_not_to_show_figure=True, opt_time=False, min_per_km=1):
+    def __init__(self, graph: VrptwGraph, source, path_handover, path_map, folder_name_result, result_df, parameter, 
+                 exp_id, opt_time, service_time_matrix=None, order_ids=None, ants_num=10, alpha=1,
+                 beta=1, q0=0.1, time_slice=0, whether_or_not_to_show_figure=True, min_per_km=1):
         super()
         # graph 结点的位置、服务时间信息 Location of nodes, service hours information
         self.graph = graph
@@ -45,8 +46,6 @@ class MultipleAntColonySystem:
         self.best_path = None
         self.best_vehicle_num = None
         self.min_per_km = min_per_km
-
-
         self.whether_or_not_to_show_figure = whether_or_not_to_show_figure
 
         # MOD: Added parameters
@@ -56,19 +55,18 @@ class MultipleAntColonySystem:
         self.source = source
         self.path_map = path_map
         self.folder_name_result = folder_name_result
-
-        # MOD: Marlene
-        if self.source == 'r':
-            self.service_time_matrix = service_time_matrix
-            self.order_ids = order_ids
+ 
+        self.service_time_matrix = service_time_matrix
+        self.order_ids = order_ids
         self.opt_time = opt_time
-        self.time_iterations = 0
-        self.vehicle_iterations = 0
-        self.macs_iterations = 0
+        # self.time_iterations = 0
+        # self.vehicle_iterations = 0
+        # self.macs_iterations = 0
         self.result_df = result_df
         self.parameter = parameter
         self.iteration_run_time = 0
-
+        self.exp_id = exp_id
+        # self.improvement_counter = improvement_counter
     @staticmethod
     def stochastic_accept(index_to_visit, transition_prob):
         """
@@ -193,7 +191,7 @@ class MultipleAntColonySystem:
     @staticmethod
     def acs_time(new_graph: VrptwGraph, vehicle_num: int, ants_num: int, q0: float, alpha: int, beta: int,
                  global_path_queue: Queue, path_found_queue: Queue, stop_event: Event, path_handover, time_slice, 
-                 source, service_time_matrix=None, order_ids=None, opt_time=False):
+                 source, opt_time:bool, service_time_matrix=None, order_ids=None):
         """
         对于acs_time来说，需要访问完所有的结点（路径是可行的），尽量找到travel distance更短的路径
         For acs_time, you need to visit all the nodes (where the path is possible) and try to find a path with a shorter
@@ -236,15 +234,12 @@ class MultipleAntColonySystem:
                 return
 
             for k in range(ants_num):
-                # MOD: Marlene
-                if source == 'r':
-                    ant = Ant(path_handover=path_handover, time_slice=time_slice, 
-                              graph=new_graph, source=source, service_time_matrix=service_time_matrix, 
-                              order_ids=order_ids, start_index=0) 
+                
+                ant = Ant(path_handover=path_handover, time_slice=time_slice, 
+                            graph=new_graph, source=source, service_time_matrix=service_time_matrix, 
+                            order_ids=order_ids, start_index=0, opt_time=opt_time) 
              
-                elif source == 't':
-                    ant = Ant(path_handover=path_handover, time_slice=time_slice, 
-                              graph=new_graph, source=source, start_index=0)
+              
                 # MOD: Local Search set to False, argument alpha added
                 thread = ants_pool.submit(MultipleAntColonySystem.new_active_ant, ant, vehicle_num, False,
                                           np.zeros(new_graph.node_num), q0, alpha, beta, stop_event, service_time_matrix, order_ids)
@@ -279,7 +274,6 @@ class MultipleAntColonySystem:
 
                 # 路径蚂蚁计算得到的最短路径
                 # The shortest path calculated by the path ant.
-                
                     if ant.index_to_visit_empty() and (ant_best_travel_distance is None or ant.total_travel_distance <
                                                     ant_best_travel_distance):
                         ant_best_travel_distance = ant.total_travel_distance
@@ -300,6 +294,7 @@ class MultipleAntColonySystem:
             # Perform a global update of pheromones here
             if not opt_time:
                 new_graph.global_update_pheromone(global_best_path, global_best_distance)
+                
             # 向macs发送计算得到的当前的最佳路径
             # sends the calculated current best path to macs.
                 if ant_best_travel_distance is not None and ant_best_travel_distance < global_best_distance:
@@ -323,7 +318,7 @@ class MultipleAntColonySystem:
     @staticmethod
     def acs_vehicle(new_graph: VrptwGraph, vehicle_num: int, ants_num: int, q0: float, alpha: int, beta: int,
                     global_path_queue: Queue, path_found_queue: Queue, stop_event: Event, path_handover, time_slice,
-                    source, service_time_matrix=None, order_ids=None, opt_time=False):
+                    source, opt_time: bool, service_time_matrix=None, order_ids=None):
         """
         对于acs_vehicle来说，所使用的vehicle num会比当前所找到的best path所使用的车辆数少一辆，要使用更少的车辆，尽量去访问结点，
         如果访问完了所有的结点（路径是可行的），就将通知macs
@@ -398,14 +393,9 @@ class MultipleAntColonySystem:
 
             # MOD: Argument alpha added
             for k in range(ants_num):
-                if source == 'r':
-                    ant = Ant(path_handover=path_handover, time_slice=time_slice, 
-                              graph=new_graph, source=source, service_time_matrix=service_time_matrix, 
-                              order_ids=order_ids, start_index=0)
-                elif source == 't':
-                    ant = Ant(path_handover=path_handover, time_slice=time_slice, 
-                              graph=new_graph, source=source, start_index=0)
-
+                ant = Ant(path_handover=path_handover, time_slice=time_slice, 
+                            graph=new_graph, source=source, service_time_matrix=service_time_matrix, 
+                            order_ids=order_ids, start_index=0, opt_time=opt_time)
                 thread = ants_pool.submit(MultipleAntColonySystem.new_active_ant, ant, vehicle_num, False, IN, q0,
                                           alpha, beta, stop_event, service_time_matrix, order_ids)
 
@@ -464,7 +454,6 @@ class MultipleAntColonySystem:
                 if opt_time:
                     global_best_path, global_best_time, global_used_vehicle_num = info.get_path_info()
 
-
             if not opt_time:
                 new_graph.global_update_pheromone(global_best_path, global_best_distance)
             if opt_time:
@@ -495,28 +484,15 @@ class MultipleAntColonySystem:
         if self.whether_or_not_to_show_figure:
             # MOD: self.time_slice, self.time_slice, self.graph.all_nodes (instead of self.graph.nodes), self.path_map,
             # self.graph.file_path and self.folder_name_result added
-            figure = VrptwAcoFigure(self.source, self.time_slice, self.graph.all_nodes, path_queue_for_figure,
-                                    self.path_map, self.graph.file_path, self.folder_name_result, self.opt_time)
+            figure = VrptwAcoFigure(source=self.source, time_slice=self.time_slice, nodes=self.graph.all_nodes, 
+                                    path_queue=path_queue_for_figure, path_map=self.path_map, 
+                                    file_path=self.graph.file_path, folder_name_result=self.folder_name_result, 
+                                    opt_time=self.opt_time)
             figure.run()
         multiple_ant_colony_system_thread.join()
 
         return
     
-    # def total_cost_original(self, tours, travel_time_mat, service_time, order_ids):
-    #     total_cost = 0
-    #     for tour in tours:
-    #         tour_time = 0
-    #         for i in range(len(tour) - 1):
-    #             traffic_phase = "off_peak" if tour_time < prep_cfg.traffic_times["phase_transition"][
-    #             "from_shift_start"] else "phase_transition" if tour_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
-    #             tour_time += max(service_time[order_ids[tour[i]]+":" +
-    #                                         traffic_phase] if order_ids[tour[i]] != "order_0" else 0 
-    #                                         + travel_time_mat[tour[i]][tour[i + 1]], self.graph.all_nodes[tour[i+1]].ready_time-tour_time)
-    #         tour_cost = (tour_time*cfg.cost_per_minute) + \
-    #             cfg.cost_per_driver
-    #         total_cost += tour_cost
-    #     return total_cost
-
     def total_cost_vns(self, tours, travel_time_mat, service_time, order_ids):
         total_cost = 0
         for tour in tours:
@@ -639,10 +615,6 @@ class MultipleAntColonySystem:
             if self.opt_time:
                 self.best_path, self.best_path_travel_time, self.best_vehicle_num = self.graph.nearest_neighbor_heuristic()
 
-            # test_cost = self.total_cost_exp(self.best_path, self.graph.node_dist_mat, self.service_time_matrix, self.order_ids)
-            # test_cost, cost_list = self._calculate_costs()
-            # print('')
-
         else:
             f = open(self.path_handover, 'r')
             self.lines = f.readlines()
@@ -659,7 +631,6 @@ class MultipleAntColonySystem:
         elif self.opt_time:
             path_queue_for_figure.put(PathMessage(self.best_path, self.best_path_travel_time))
 
-
         while True:
             print('[multiple_ant_colony_system]: new iteration')
             # MOD: start_time_found_improved_solution = time.time() removed, total time is significant time information
@@ -674,7 +645,6 @@ class MultipleAntColonySystem:
             elif self.opt_time:
                 global_path_to_acs_vehicle.put(PathMessage(self.best_path, self.best_path_travel_time))
                 global_path_to_acs_time.put(PathMessage(self.best_path, self.best_path_travel_time))
-       
             stop_event = Event()
 
             # acs_vehicle，尝试以self.best_vehicle_num-1辆车去探索，访问更多的结点
@@ -688,19 +658,14 @@ class MultipleAntColonySystem:
                 elif self.opt_time:
                     graph_for_acs_vehicle.global_update_pheromone(self.best_path, self.best_path_travel_time)
 
-
             # MOD: Arguments self.alpha, self.path_handover and self.time_slice added
-            if self.source == 'r':
-                acs_vehicle_thread = Thread(target=MultipleAntColonySystem.acs_vehicle,
-                                        args=(graph_for_acs_vehicle, self.best_vehicle_num - 1, self.ants_num, self.q0,
-                                              self.alpha, self.beta, global_path_to_acs_vehicle, path_found_queue,
-                                              stop_event, self.path_handover, self.time_slice, self.source, self.service_time_matrix, 
-                                              self.order_ids, self.opt_time))
-            elif self.source == 't':
-                                acs_vehicle_thread = Thread(target=MultipleAntColonySystem.acs_vehicle,
-                                        args=(graph_for_acs_vehicle, self.best_vehicle_num - 1, self.ants_num, self.q0,
-                                              self.alpha, self.beta, global_path_to_acs_vehicle, path_found_queue,
-                                              stop_event, self.path_handover, self.time_slice, self.source))
+            
+            acs_vehicle_thread = Thread(target=MultipleAntColonySystem.acs_vehicle,
+                                    args=(graph_for_acs_vehicle, self.best_vehicle_num - 1, self.ants_num, self.q0,
+                                            self.alpha, self.beta, global_path_to_acs_vehicle, path_found_queue,
+                                            stop_event, self.path_handover, self.time_slice, self.source, self.opt_time, 
+                                            self.service_time_matrix, 
+                                            self.order_ids))
 
             # acs_time 尝试以self.best_vehicle_num辆车去探索，找到更短的路径
             # acs_time tries to explore with self.best_vehicle_num vehicles to find a shorter path.
@@ -713,20 +678,14 @@ class MultipleAntColonySystem:
                 elif self.opt_time:
                     graph_for_acs_vehicle.global_update_pheromone(self.best_path, self.best_path_travel_time)
 
-            # MOD: Marlene
-            if self.source == 't':
-                acs_time_thread = Thread(target=MultipleAntColonySystem.acs_time,
-                                         args=(graph_for_acs_time, self.best_vehicle_num, self.ants_num, self.q0, self.beta,
-                                           self.alpha, global_path_to_acs_time, path_found_queue, stop_event,
-                                           self.path_handover, self.time_slice, self.source))
-            elif self.source == 'r':
-            # MOD: Arguments self.alpha, self.path_handover and self.time_slice added
-                acs_time_thread = Thread(target=MultipleAntColonySystem.acs_time,
-                                         args=(graph_for_acs_time, self.best_vehicle_num, self.ants_num, 
-                                               self.q0, self.beta, self.alpha, global_path_to_acs_time, 
-                                               path_found_queue, stop_event, self.path_handover, self.time_slice, 
-                                               self.source, self.service_time_matrix, self.order_ids, self.opt_time))
+            
 
+            # MOD: Arguments self.alpha, self.path_handover and self.time_slice added
+            acs_time_thread = Thread(target=MultipleAntColonySystem.acs_time,
+                                        args=(graph_for_acs_time, self.best_vehicle_num, self.ants_num, 
+                                            self.q0, self.beta, self.alpha, global_path_to_acs_time, 
+                                            path_found_queue, stop_event, self.path_handover, self.time_slice, 
+                                            self.source, self.opt_time, self.service_time_matrix, self.order_ids))
 
             # 启动acs_vehicle_thread和acs_time_thread，当他们找到feasible、且是比best path好的路径时，就会发送到macs中来
             # Start acs_vehicle_thread and acs_time_thread and send them to macs when they find a FEASIBLE path that is
@@ -752,21 +711,31 @@ class MultipleAntColonySystem:
                     self.print_and_write_in_file(file_to_write, 'it takes %0.3f seconds from multiple_ant_colony_system running' % (time.time()-start_time_total))
                     self.print_and_write_in_file(file_to_write, 'the best path have found is:')
                     self.print_and_write_in_file(file_to_write, self.best_path)
-
-                    # MOD: Marlene
-                    
-                    # total_cost_exp, list_new = self._calculate_costs()
                     total_cost = self._calculate_costs_new()
                     if not self.opt_time:
-                        travel_time = Ant.cal_total_travel_time(self.graph, self.best_path, self.service_time_matrix, self.order_ids)
+                        travel_time, idle_time = Ant.cal_total_travel_time(self.graph, self.best_path, self.service_time_matrix, self.order_ids, get_idle_time=True)
                         self.print_and_write_in_file(file_to_write, 'best path distance is %f, best vehicle_num is %d' % (self.best_path_distance, self.best_vehicle_num))
                         result_tuple = (str(self.best_path), str(self.best_path_distance), str(self.best_vehicle_num),
                                         str([]))
                         result_tuple_costs = ('path: '+str(self.best_path), 'distance: '+str(self.best_path_distance), 
                                               'vehicle_num: '+str(self.best_vehicle_num), 'costs: '+str(total_cost), 
                                               'travel time: '+str(travel_time), str([]))
+                        
+                        # tour_feasible = self.check_feasibility(self.best_path)                        
+                        if self.time_slice == 0:
+                            self.result_df.loc[self.time_slice] = [
+                                self.parameter, cfg.cost_per_driver, cfg.cost_per_hour, total_cost, idle_time, self.best_path_distance, 
+                                self.best_vehicle_num, self.iteration_run_time, self.best_path]
+                            self.result_df.to_csv(os.path.join(self.folder_name_result, 'result.csv'), mode='a')
+                        else:
+                            result_df = pd.read_csv(os.path.join(self.folder_name_result, 'result.csv'), usecols=[
+                                'parameters', 'cost per driver', 'cost per hour', 'final_cost', 'idle_time', 'tour_length', 'vehicle_number', 'runtime', 'final_tour'])
+                            result_df.loc[len(result_df.index)] = [
+                                self.parameter, cfg.cost_per_driver, cfg.cost_per_hour, total_cost, idle_time, self.best_path_distance, 
+                                self.best_vehicle_num, self.iteration_run_time, self.best_path]
+                            result_df.to_csv(os.path.join(self.folder_name_result, 'result.csv'))
                     elif self.opt_time:
-                        travel_time, idle_time = Ant.cal_total_travel_time(self.graph, self.best_path, self.service_time_matrix, self.order_ids)
+                        travel_time, idle_time = Ant.cal_total_travel_time(self.graph, self.best_path, self.service_time_matrix, self.order_ids, get_idle_time=True)
                         distance = Ant.cal_total_travel_distance(self.graph, self.best_path)
                         cost_test = self.best_path_travel_time * cfg.cost_per_minute + self.best_vehicle_num * cfg.cost_per_driver
                         self.print_and_write_in_file(file_to_write, 'best path travel time is %f, best vehicle_num is %d' % (self.best_path_travel_time, self.best_vehicle_num))
@@ -776,11 +745,23 @@ class MultipleAntColonySystem:
                                               'vehicle_num: '+str(self.best_vehicle_num), 'costs: '+str(total_cost), 
                                               'travel time: '+str(travel_time), str([]))
 
-                        self.result_df.loc[len(self.result_df.index)] = [
-                                self.parameter, cfg.cost_per_driver, cfg.cost_per_hour, total_cost, idle_time, distance, 
+                        travel_time_compariosn = f'travel time from function: {travel_time}, travel time from algo {self.best_path_travel_time}'                        
+                        # tour_feasible = self.check_feasibility(self.best_path)                        
+                        if self.time_slice == 0:
+                            self.result_df.loc[self.time_slice] = [
+                                self.parameter, cfg.cost_per_driver, cfg.cost_per_hour, travel_time_compariosn, total_cost, idle_time, distance, 
                                 self.best_vehicle_num, self.iteration_run_time, self.best_path]
-                        self.result_df.to_csv(os.path.join(self.folder_name_result, 'result.csv'))
-
+                            self.result_df.to_csv(os.path.join(self.folder_name_result, 'result.csv'), mode='a')
+                        else:
+                            result_df = pd.read_csv(os.path.join(self.folder_name_result, 'result.csv'), usecols=[
+                                'parameters', 'cost per driver', 'cost per hour', 'travel_time_comp', 'final_cost', 'idle_time', 'tour_length', 'vehicle_number', 'runtime', 'final_tour'])
+                            result_df.loc[len(result_df.index)] = [
+                                self.parameter, cfg.cost_per_driver, cfg.cost_per_hour, travel_time_compariosn, total_cost, idle_time, distance, 
+                                self.best_vehicle_num, self.iteration_run_time, self.best_path]
+                            result_df.to_csv(os.path.join(self.folder_name_result, 'result.csv'))
+                        print(f'time slice: {self.time_slice}')
+                        print(travel_time_compariosn)
+                        # print('')
                         
                     # MOD: Save current best results to file and copy to handover file
                     
@@ -808,13 +789,12 @@ class MultipleAntColonySystem:
                     # Pass in None as an end flag.
                     if self.whether_or_not_to_show_figure:
                         path_queue_for_figure.put(PathMessage(None, None))
-                        # path_queue_for_figure.put(PathMessage(None, None, None, None, None))
 
                     if file_to_write is not None:
                         file_to_write.flush()
                         file_to_write.close()
 
-                    return
+                    return 
 
                 if path_found_queue.empty():
                     continue
@@ -892,7 +872,7 @@ class MultipleAntColonySystem:
 
                         self.print_and_write_in_file(file_to_write, '*' * 50)
                         self.print_and_write_in_file(file_to_write, '[macs]: travel time of found path (%f) better than best path\'s (%f)' % (found_path_time, self.best_path_travel_time))
-
+                        # self.improvement_counter +=1
                         # MOD: Difference to previous solution added
                         self.print_and_write_in_file(file_to_write, 'difference to previous solution: {:.20f}'.format(self.best_path_travel_time-found_path_time))
                         self.print_and_write_in_file(file_to_write, 'it takes %0.3f second from multiple_ant_colony_system running' % (time.time()-start_time_total))
@@ -908,13 +888,10 @@ class MultipleAntColonySystem:
                         # If you need to draw a drawing, the best path to find is sent to the plotter
                         if self.whether_or_not_to_show_figure:
                             path_queue_for_figure.put(PathMessage(self.best_path, self.best_path_travel_time))
-                            # path_queue_for_figure.put(PathMessage(self.best_path, self.best_path_travel_time, self.graph, self.service_time_matrix, self.order_ids))
 
                         # 通知acs_vehicle和acs_time两个线程，当前找到的best_path和best_path_distance
                         # Notify the acs_vehicle and acs_time threads that the best_path and best_path_distance are
                         # currently found.
-                        # global_path_to_acs_vehicle.put(PathMessage(self.best_path, self.best_path_travel_time, self.graph, self.service_time_matrix, self.order_ids))
-                        # global_path_to_acs_time.put(PathMessage(self.best_path, self.best_path_travel_time, self.graph, self.service_time_matrix, self.order_ids))
                         global_path_to_acs_vehicle.put(PathMessage(self.best_path, self.best_path_travel_time))
                         global_path_to_acs_time.put(PathMessage(self.best_path, self.best_path_travel_time))
 
@@ -990,3 +967,131 @@ class MultipleAntColonySystem:
         else:
             print(message)
             file_to_write.write(str(message)+'\n')
+
+    def check_feasibility(self, path, minutes_per_km = 1):
+        travel_time = 0
+        current_time = 0
+        vehicle_num = 0
+        dist_dict = {}
+        total_idle_time = 0
+
+        for i in range(0, len(path)-1):
+            # if path[i] == 0:
+            #     if vehicle_num == 9:
+            #         print('')
+            if path[i] == 0 and i != 0:
+                dist_dict[vehicle_num] = travel_time
+                # test_dict[vehicle_num] = test_path
+                current_time = 0
+                vehicle_num += 1
+                travel_time = 0
+                # test_path = []
+            dist = self.graph.node_dist_mat[path[i]][path[i+1]]*minutes_per_km
+            if path[i] != 0:
+                wait_time = max(self.graph.all_nodes[path[i+1]].ready_time - current_time - dist, 0)
+                current_time += dist + wait_time
+                total_idle_time += wait_time
+            else:
+                wait_time = 0
+                current_time = max(self.graph.all_nodes[path[i+1]].ready_time, dist)
+
+            service_time = VrptwGraph.get_service_time(path[i+1], self.service_time_matrix, 
+                                                            current_time, self.order_ids)
+            if current_time > self.graph.all_nodes[path[i+1]].due_time:
+                # print('')
+                return False
+            current_time += service_time
+            travel_time += dist + wait_time + service_time
+            
+        if current_time > 480:
+            # print('')
+            return False
+        else:
+            return True
+
+
+
+        # veh_num = path.count(0)-1
+        # sub_tours = [[0,0]] * veh_num
+        # current_tour = 0
+        # counter = 0
+        # for order in path:
+        #     if order != 0:
+        #         sub_tours[current_tour] = sub_tours[current_tour][:-1]+[order]+[sub_tours[current_tour][-1]]
+        #     if order == 0 and counter != 0:
+        #         current_tour +=1
+        #     counter += 1
+        
+        
+        # travel_time = 0
+        # current_time = 0
+        # vehicle_num = 0
+        # dist_dict = {}
+        # total_idle_time = 0
+        # unfeasible_tours_1 = []
+        # unfeasible_tours_2 = []
+        # unfeasible_tours_3 = []
+
+
+        # total_cost = 0
+        # for tour in sub_tours:
+        #     current_time = 0
+        #     travel_time = 0
+        #     for i in range(len(tour) - 1):
+        #         if tour[i] == 19:
+        #             print('')
+        #         traffic_phase = "off_peak" if current_time < prep_cfg.traffic_times["phase_transition"][
+        #         "from_shift_start"] else "phase_transition" if current_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
+        #         if i == 0:
+        #             travel_time += self.graph.node_dist_mat[tour[i]][tour[i + 1]]
+        #             current_time += max(self.graph.node_dist_mat[tour[i]][tour[i + 1]], self.graph.all_nodes[tour[i+1]].ready_time)
+        #         else:
+        #             travel_time += max(self.service_time_matrix[self.order_ids[tour[i]]+":" +
+        #                                     traffic_phase] + self.graph.node_dist_mat[tour[i]][tour[i + 1]], 
+        #                                     self.graph.all_nodes[tour[i+1]].ready_time-current_time)
+        #             current_time += max(self.service_time_matrix[self.order_ids[tour[i]]+":" +
+        #                                     traffic_phase] + self.graph.node_dist_mat[tour[i]][tour[i + 1]], 
+        #                                     self.graph.all_nodes[tour[i+1]].ready_time-current_time)
+                    
+        #             if current_time > self.graph.all_nodes[tour[i+1]].due_time:
+        #                 unfeasible_tours_3.append(tour)
+                
+        #         if current_time > 480:
+        #             unfeasible_tours_1.append(tour)
+                
+                
+                
+        #     tour_cost = (travel_time*cfg.cost_per_minute) + \
+        #         cfg.cost_per_driver
+        #     total_cost += tour_cost
+        # return unfeasible_tours_1, unfeasible_tours_2, unfeasible_tours_3
+
+        # for i in range(0, len(path)-1):
+        #     # if path[i] == 0:
+        #     #     if vehicle_num == 9:
+        #     #         print('')
+        #     if path[i] == 0 and i != 0:
+        #         dist_dict[vehicle_num] = travel_time
+        #         # test_dict[vehicle_num] = test_path
+        #         current_time = 0
+        #         vehicle_num += 1
+        #         travel_time = 0
+        #         # f'planning_df_{vehicle_num}' = pd.DataFrame()
+        #         # test_path = []
+        #     dist = self.graph.node_dist_mat[path[i]][path[i+1]]*minutes_per_km
+        #     if path[i] != 0:
+        #         wait_time = max(self.graph.all_nodes[path[i+1]].ready_time - current_time - dist, 0)
+        #         current_time += dist + wait_time
+        #         total_idle_time += wait_time
+        #     else:
+        #         wait_time = 0
+        #         current_time = max(self.graph.all_nodes[path[i+1]].ready_time, dist)
+
+        #     service_time = VrptwGraph.get_service_time(path[i+1], self.service_time_matrix, 
+        #                                                     current_time, self.order_ids)
+        #     current_time += service_time
+        #     travel_time += dist + wait_time + service_time
+            
+        # dist_dict[vehicle_num] = travel_time
+
+        # total_travel_time = sum(dist_dict.values())

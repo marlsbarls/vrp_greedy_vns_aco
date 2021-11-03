@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 from vns.src.algorithm.SavingsAlgorithm import SavingsAlgorithm
-from vns.src.algorithm.improved_vns import run_vns, create_planning_df, total_cost
+from vns.src.algorithm.improved_vns import create_planning_df_new, run_vns, create_planning_df_new, total_cost
 from vns.src.helpers.DistanceMatrix import DistanceMatrix
 import vns.src.config.vns_config as cfg
 from copy import deepcopy
@@ -25,7 +25,6 @@ class VNSSimulation():
         # self.stop_event = 'iterations'
         self.stop_event = 'time'
         self.set_parameters = {
-            'file name': self.test_files,
             'static or dynamic': self.dyanmic,
             'considering time in saving': self.savings_consider_time,
             'stop_event': self.stop_event,
@@ -36,6 +35,9 @@ class VNSSimulation():
         }
 
     def run_simulation(self):
+
+
+        
         pd.set_option("display.max_colwidth", 10000)
         dir_name = os.path.dirname(os.path.realpath('__file__'))
         file_names = self.test_files
@@ -45,14 +47,19 @@ class VNSSimulation():
         static_type = "validation"
 
         for file in file_names:
+            self.set_parameters['file'] = file
             test_name = test_name
             file_name = os.path.join(
                 dir_name, 'input_data', 'surve_mobility', 'orders', file + '_orders.csv')
             
-            today = date.today()
-            date_today = today.strftime("%b-%d-%Y")
+            # today = date.today()
+            # date_today = today.strftime("%b-%d-%Y")
+            now = datetime.now()
+            date_time = now.strftime("%d-%m-%Y_%H:%M:%S")
             target_folder_results = os.path.join(
-            dir_name, "results", "vns", 'surve_mobility', file, test_type, date_today)
+            dir_name, "results", "vns", 'surve_mobility', file, test_type, date_time)
+            self.set_parameters['Result Folder'] = target_folder_results
+            
 
             all_orders_df = pd.read_csv(file_name)
             order_ids = all_orders_df['order_id'].values.tolist()
@@ -62,6 +69,11 @@ class VNSSimulation():
                 all_orders_df['AVAILABLETIME'] = 0
             elif test_type == 'dynamic':
                 all_orders_df['AVAILABLETIME'] = all_orders_df['READYTIME']
+
+            #### experiment
+            all_orders_df['READYTIME'] = 0
+
+            ###### end
 
             planning_df = all_orders_df[['CUST_NO']].copy(deep=True)
             planning_df['VISITED'] = False
@@ -77,129 +89,156 @@ class VNSSimulation():
             savings = SavingsAlgorithm(
                 all_orders_df, travel_time_matrix, service_time_matrix, self.savings_consider_time)
 
-            if (test_type == "static"):
-                time_slice = 0
-                Path(target_folder_results).mkdir(parents=True, exist_ok=True)
-                Path(os.path.join(target_folder_results, "convergence")).mkdir(parents=True, exist_ok=True)
-                Path(os.path.join(target_folder_results, "tour_plans")).mkdir(parents=True, exist_ok=True)
-                Path(os.path.join(target_folder_results, "tour_visuals")).mkdir(parents=True, exist_ok=True)
-
-                result_df = pd.DataFrame(columns=[
-                    'costs_per_driver', 'costs_per_hour', 'savings_considering_time' 'initial_cost', 'final_cost', 'idle_time', 'tour_length', 'vehicle_number', 'runtime', 'total_iterations', 'last_improvement', 'operator_performance', 'initial_tour', 'final_tour'])
-                current_order_df, planning_df, current_tour = savings.initialization()
-                if(static_type == "experimentation"):
-                    # Set params to test
-                    # fix_costs = [400, 0, 10, 100]  # cost per driver
-                    # variable_costs = [9.5, 15, 30]  # cost per hour
-                    fix_costs = [400, 0, 10, 100]  # cost per driver
-                    variable_costs = [9.5, 15, 30]  # cost per hour
-                    #insert_probabilities = [1, 0.97, 0.94]
-                    #sort_probabilities = [0, 0.5, 0.75, 1]
-                    #temperatures = [10, 100, 1000]
-
-                    exp_id = 0
-                    for cost_per_driver in fix_costs:
-                        for cost_per_hour in variable_costs:
-                            # return object: "best_solution", "best_cost", "idle_time", "planning_df",
-                            # "initial_cost", "initial_solution", "last_improvement", "total_iterations", "runtime", "operator_performance"
-                            final_tour, final_cost, final_idle_time, planning_df, initial_cost, initial_solution, final_tour_length, last_improvement, total_iterations, runtime, performance_counter, convergence = run_vns(file, current_tour, all_orders_df, np.zeros(
-                                len(current_tour), dtype=int), planning_df, 0, target_folder_results, True, cost_per_driver=cost_per_driver, cost_per_hour=cost_per_hour, exp_id=exp_id, test_name=test_name)
-
-                            result_df.loc[len(result_df.index)] = [
-                                cost_per_driver, cost_per_hour, initial_cost, final_cost, final_idle_time, final_tour_length, len(final_tour), runtime, total_iterations, last_improvement, performance_counter, initial_solution, final_tour]
-                            tp = TourPlanVisualizer(dir_name, file,
-                                                    travel_time_matrix, planning_df, final_tour, final_cost, final_idle_time, True, time=0, test_name=test_name, exp_id=exp_id)
-                            tp.create_tour_plan()
-                            # base_dir, tours, time_slice, file_name, is_exp, **exp_params
-                            tv = TourVisualizer(dir_name, final_tour, time,
-                                                file, True, test_name=test_name, exp_id=exp_id)
-                            tv.run()
-                            result_df.to_csv(os.path.join(target_folder_results, 'result.csv'))
-                            # result_df.to_csv(
-                            #     "%s/results/vns/surve_mobility/%s/%s/result.csv" % (dir_name, file, test_name))
-                            exp_id += 1
-
-                elif(static_type == "validation"):
-
-                    result_df = pd.DataFrame(columns=[
-                        'parameters', 'interval', 'time', 'initial_cost', 'final_cost', 'idle_time', 'tour_length', 'runtime', 'total_iterations', 'last_improvement', 'operator_performance', 'initial_tour', 'final_tour', 'run_time'])
-
-                    # intervals = [15, 30, 60]
-                    interval = 15
-                    for exp_id in range(0, 5):
-                        for time_slice in range(0, 481, interval):
-                            exp_id_result = exp_id
-                            time_start = time.time()
-                            if(time_slice == 0):
-                                current_order_df, planning_df, current_tour = savings.initialization(
-                                    time_slice)
-                                order_visibility = np.zeros(len(current_tour), dtype=int)
-                            else:
-                                current_order_df, planning_df, current_tour, order_visibility = savings.insert_new(
-                                    final_tour, planning_df, time_slice, interval)
-                            # return object: "best_solution", "best_cost", "idle_time", "planning_df",
-                            # "initial_cost", "initial_solution", "last_improvement", "total_iterations", "runtime", "operator_performance"
-                            final_tour, final_cost, final_idle_time, planning_df, initial_cost, initial_solution, final_tour_length, last_improvement, total_iterations, runtime, performance_counter, convergence = run_vns(
-                                file, current_tour, all_orders_df, order_visibility, planning_df, interval, target_folder_results, self.stop_event, True, exp_id=str(interval) + "_" + str(time_slice), test_name=test_name)
-
-                            current_time = time.time()
-                            run_time = (current_time - time_start)/60
-                            result_df.loc[len(result_df.index)] = [
-                                self.set_parameters, interval, time_slice, initial_cost, final_cost, final_idle_time, final_tour_length, runtime, total_iterations, last_improvement, performance_counter, initial_solution, final_tour, run_time]
-
-                            tp = TourPlanVisualizer(dir_name, file, target_folder_results,
-                                                    travel_time_matrix, planning_df, final_tour, final_cost, final_idle_time, True, exp_id=exp_id_result, time=time_slice, test_name=test_name)
-                            tp.create_tour_plan()
-                            # base_dir, tours, time_slice, file_name, is_exp, **exp_params
-                            tv = TourVisualizer(dir_name, target_folder_results, final_tour, time_slice,
-                                                file, True, test_name=test_name, exp_id=exp_id_result)
-                            tv.run()
-
-                            result_df.to_csv(os.path.join(target_folder_results, f'result_{exp_id}.csv'))
-
-                            print('')
+            # elif(test_type == "dynamic"):
+            Path(target_folder_results).mkdir(parents=True, exist_ok=True)
+            Path(os.path.join(target_folder_results, "convergence")).mkdir(parents=True, exist_ok=True)
+            Path(os.path.join(target_folder_results, "tour_plans")).mkdir(parents=True, exist_ok=True)
+            Path(os.path.join(target_folder_results, "tour_visuals")).mkdir(parents=True, exist_ok=True)
 
 
-            elif(test_type == "dynamic"):
-                Path(target_folder_results).mkdir(parents=True, exist_ok=True)
-                Path(os.path.join(target_folder_results, "convergence")).mkdir(parents=True, exist_ok=True)
-                Path(os.path.join(target_folder_results, "tour_plans")).mkdir(parents=True, exist_ok=True)
-                Path(os.path.join(target_folder_results, "tour_visuals")).mkdir(parents=True, exist_ok=True)
+            #################### TEST
+            # Path example that minimizes travel time but doesn't consider right due time
 
-                result_df = pd.DataFrame(columns=[
-                    'parameters', 'interval', 'time', 'initial_cost', 'final_cost', 'idle_time', 'tour_length', 'runtime', 'total_iterations', 'last_improvement', 'operator_performance', 'initial_tour', 'final_tour', 'run_time'])
+            # # OLD CHECK CONDITION
+            # # test_2 = [[0, 35, 38, 43, 15, 31, 56, 34, 44, 32, 40, 45, 41, 46, 24, 39, 0], [0, 1, 33, 36, 37, 28, 26, 7, 47, 22, 20, 21, 23, 49, 30, 9, 12, 13, 11, 10, 27, 70, 3, 5, 0], [0, 25, 16, 19, 14, 18, 2, 48, 57, 61, 42, 29, 17, 8, 67, 6, 91, 99, 102, 96, 93, 94, 4, 0], [0, 50, 51, 55, 54, 60, 77, 76, 75, 80, 53, 79, 78, 52, 0], [0, 58, 59, 63, 64, 62, 65, 0], [0, 66, 71, 68, 69, 73, 72, 74, 81, 83, 85, 87, 84, 86, 82, 89, 90, 97, 88, 0], [0, 92, 95, 98, 104, 103, 105, 100, 101, 106, 107, 0]]
+            # # test_2 = [[0, 66, 71, 68, 69, 67, 81, 82, 86, 87, 89, 83, 106, 72, 73, 0], [0, 35, 49, 0], [0, 5, 4, 6, 43, 15, 18, 14, 2, 48, 42, 29, 3, 27, 9, 10, 11, 12, 13, 30, 39, 0], [0, 50, 51, 54, 61, 77, 76, 75, 70, 80, 53, 79, 78, 0, 38, 33, 36, 1, 0], [0, 44, 34, 19, 37, 47, 52, 24, 32, 16, 94, 97, 105, 90, 74, 0], [0, 25, 8, 17, 31, 28, 26, 7, 22, 20, 21, 41, 45, 23, 46, 40, 0], [0, 55, 56, 57, 0], [0, 58, 59, 60, 62, 0], [0, 65, 0], [0, 63, 64, 0], [0, 85, 88, 91, 95, 99, 102, 0], [0, 84, 0], [0, 92, 96, 98, 93, 103, 0], [0, 104, 0], [0, 100, 101, 107, 0]]
 
-                # intervals = [15, 30, 60]
+            # test_2 = [[0, 36, 37, 1, 48, 64, 24, 71, 79, 0], [0, 55, 39, 0], [0, 35, 38, 43, 15, 57, 69, 65, 67, 62, 25, 59, 88, 101, 60, 0], [0, 85, 84, 87, 86, 100, 52, 97, 0], [0, 28, 33, 31, 42, 29, 26, 22, 20, 77, 7, 3, 80, 96, 98, 2, 93, 17, 6, 4, 5, 0], [0, 50, 30, 49, 54, 74, 72, 8, 73, 14, 18, 94, 19, 0], [0, 58, 47, 76, 75, 70, 81, 10, 13, 12, 103, 90, 53, 0], [0, 66, 63, 68, 16, 82, 78, 0], [0, 56, 9, 11, 61, 51, 0], [0, 44, 32, 34, 46, 45, 23, 21, 41, 40, 89, 105, 0], [0, 91, 92, 95, 99, 102, 104, 27, 106, 83, 0], [0, 107, 0]]                                               
+            # df_test_2 = create_planning_df_new(test_2, all_orders_df, service_time_matrix, all_orders_df['READYTIME'], order_ids, all_orders_df['DUETIME'])
+
+            
+            
+            
+            # df_test_2.to_csv(os.path.join('/Users/marlenebuhl/Documents/University/thesis/coding_part/thesis_marlene/results/data_preparation', 'test.csv'))
+            # print(df_test_2)
+
+
+            ##################### TEST END
+
+            result_df = pd.DataFrame(columns=[
+                'parameters', 'interval', 'time', 'initial_cost', 'final_cost', 'num drivers', 'idle_time', 'tour_length', 'runtime', 'total_iterations', 'last_improvement', 'operator_performance', 'initial_tour', 'final_tour', 'run_time'])
+
+            # intervals = [15, 30, 60]
+            # interval = 15
+            if test_type == 'static':
+                interval = 480
+                # interval = 15
+            if test_type == 'dynamic':
                 interval = 15
-                for exp_id in range(0, 5):
-                    for time_slice in range(0, 481, interval):
-                        exp_id_result = exp_id
-                        time_start = time.time()
-                        if(time_slice == 0):
-                            current_order_df, planning_df, current_tour = savings.initialization(
-                                time_slice)
-                            order_visibility = np.zeros(len(current_tour), dtype=int)
-                        else:
-                            current_order_df, planning_df, current_tour, order_visibility = savings.insert_new(
-                                final_tour, planning_df, time_slice, interval)
-                        # return object: "best_solution", "best_cost", "idle_time", "planning_df",
-                        # "initial_cost", "initial_solution", "last_improvement", "total_iterations", "runtime", "operator_performance"
-                        final_tour, final_cost, final_idle_time, planning_df, initial_cost, initial_solution, final_tour_length, last_improvement, total_iterations, runtime, performance_counter, convergence = run_vns(
-                            file, current_tour, all_orders_df, order_visibility, planning_df, interval, target_folder_results, self.stop_event, True, exp_id=str(interval) + "_" + str(time_slice), test_name=test_name)
+            for exp_id in range(0, 1):
+                for time_slice in range(0, 481, interval):
+                    print(f'results_folder {target_folder_results}')
+                    exp_id_result = exp_id
+                    time_start = time.time()
+                    if(time_slice == 0):
+                        current_order_df, planning_df, current_tour = savings.initialization(
+                            time_slice)
+                        order_visibility = np.zeros(len(current_tour), dtype=int)
+                    else:
+                        current_order_df, planning_df, current_tour, order_visibility = savings.insert_new(
+                            final_tour, planning_df, time_slice, interval)
+                    # return object: "best_solution", "best_cost", "idle_time", "planning_df",
+                    # "initial_cost", "initial_solution", "last_improvement", "total_iterations", "runtime", "operator_performance"
+                    final_tour, final_cost, final_idle_time, planning_df, initial_cost, initial_solution, final_tour_length, last_improvement, total_iterations, runtime, performance_counter, convergence = run_vns(
+                        file, current_tour, all_orders_df, order_visibility, planning_df, interval, target_folder_results, test_type, self.stop_event, True, exp_id=str(interval) + "_" + str(time_slice), test_name=test_name)
 
-                        current_time = time.time()
-                        run_time = (current_time - time_start)/60
-                        result_df.loc[len(result_df.index)] = [
-                            self.set_parameters, interval, time_slice, initial_cost, final_cost, final_idle_time, final_tour_length, runtime, total_iterations, last_improvement, performance_counter, initial_solution, final_tour, run_time]
+                    current_time = time.time()
+                    run_time = (current_time - time_start)/60
+                    result_df.loc[len(result_df.index)] = [
+                        self.set_parameters, interval, time_slice, initial_cost, final_cost, len(final_tour), final_idle_time, final_tour_length, runtime, total_iterations, last_improvement, performance_counter, initial_solution, final_tour, run_time]
 
-                        tp = TourPlanVisualizer(dir_name, file, target_folder_results,
-                                                travel_time_matrix, planning_df, final_tour, final_cost, final_idle_time, True, exp_id=exp_id_result, time=time_slice, test_name=test_name)
-                        tp.create_tour_plan()
-                        # base_dir, tours, time_slice, file_name, is_exp, **exp_params
-                        tv = TourVisualizer(dir_name, target_folder_results, final_tour, time_slice,
-                                            file, True, test_name=test_name, exp_id=exp_id_result)
-                        tv.run()
+                    # tp = TourPlanVisualizer(dir_name, file, target_folder_results,
+                                            # travel_time_matrix, planning_df, final_tour, final_cost, final_idle_time, True, exp_id=exp_id_result, time=time_slice, test_name=test_name)
+                    # tp.create_tour_plan()
+                    # base_dir, tours, time_slice, file_name, is_exp, **exp_params
+                    # tv = TourVisualizer(dir_name, target_folder_results, final_tour, time_slice,
+                    #                     file, True, test_name=test_name, exp_id=exp_id_result)
+                    # tv.run()
 
-                        result_df.to_csv(os.path.join(target_folder_results, f'result_{exp_id}.csv'))
-                        print('')
+                    result_df.to_csv(os.path.join(target_folder_results, 'result.csv'))
+                    # print('')
 
+                    if test_type == 'static':
+                        break
+
+            # if (test_type == "static"):
+            #     time_slice = 0
+            #     Path(target_folder_results).mkdir(parents=True, exist_ok=True)
+            #     Path(os.path.join(target_folder_results, "convergence")).mkdir(parents=True, exist_ok=True)
+            #     Path(os.path.join(target_folder_results, "tour_plans")).mkdir(parents=True, exist_ok=True)
+            #     Path(os.path.join(target_folder_results, "tour_visuals")).mkdir(parents=True, exist_ok=True)
+
+            #     # result_df = pd.DataFrame(columns=[
+            #     #     'costs_per_driver', 'costs_per_hour', 'savings_considering_time' 'initial_cost', 'final_cost', 'idle_time', 'tour_length', 'vehicle_number', 'runtime', 'total_iterations', 'last_improvement', 'operator_performance', 'initial_tour', 'final_tour'])
+            #     current_order_df, planning_df, current_tour = savings.initialization()
+                # if(static_type == "experimentation"):
+                #     # Set params to test
+                #     # fix_costs = [400, 0, 10, 100]  # cost per driver
+                #     # variable_costs = [9.5, 15, 30]  # cost per hour
+                #     fix_costs = [400, 0, 10, 100]  # cost per driver
+                #     variable_costs = [9.5, 15, 30]  # cost per hour
+                #     #insert_probabilities = [1, 0.97, 0.94]
+                #     #sort_probabilities = [0, 0.5, 0.75, 1]
+                #     #temperatures = [10, 100, 1000]
+
+                #     exp_id = 0
+                #     for cost_per_driver in fix_costs:
+                #         for cost_per_hour in variable_costs:
+                #             # return object: "best_solution", "best_cost", "idle_time", "planning_df",
+                #             # "initial_cost", "initial_solution", "last_improvement", "total_iterations", "runtime", "operator_performance"
+                #             final_tour, final_cost, final_idle_time, planning_df, initial_cost, initial_solution, final_tour_length, last_improvement, total_iterations, runtime, performance_counter, convergence = run_vns(file, current_tour, all_orders_df, np.zeros(
+                #                 len(current_tour), dtype=int), planning_df, 0, target_folder_results, True, cost_per_driver=cost_per_driver, cost_per_hour=cost_per_hour, exp_id=exp_id, test_name=test_name)
+
+                #             result_df.loc[len(result_df.index)] = [
+                #                 cost_per_driver, cost_per_hour, initial_cost, final_cost, final_idle_time, final_tour_length, len(final_tour), runtime, total_iterations, last_improvement, performance_counter, initial_solution, final_tour]
+                #             tp = TourPlanVisualizer(dir_name, file,
+                #                                     travel_time_matrix, planning_df, final_tour, final_cost, final_idle_time, True, time=0, test_name=test_name, exp_id=exp_id)
+                #             tp.create_tour_plan()
+                #             # base_dir, tours, time_slice, file_name, is_exp, **exp_params
+                #             tv = TourVisualizer(dir_name, final_tour, time,
+                #                                 file, True, test_name=test_name, exp_id=exp_id)
+                #             tv.run()
+                #             result_df.to_csv(os.path.join(target_folder_results, 'result.csv'))
+                #             # result_df.to_csv(
+                #             #     "%s/results/vns/surve_mobility/%s/%s/result.csv" % (dir_name, file, test_name))
+                #             exp_id += 1
+
+                # elif(static_type == "validation"):
+
+                #     result_df = pd.DataFrame(columns=[
+                #         'parameters', 'interval', 'time', 'initial_cost', 'final_cost', 'num drivers', 'idle_time', 'tour_length', 'runtime', 'total_iterations', 'last_improvement', 'operator_performance', 'initial_tour', 'final_tour', 'run_time'])
+
+                #     # intervals = [15, 30, 60]
+                #     interval = 15
+                #     for exp_id in range(0, 5):
+                #         for time_slice in range(0, 481, interval):
+                #             exp_id_result = exp_id
+                #             time_start = time.time()
+                #             if(time_slice == 0):
+                #                 current_order_df, planning_df, current_tour = savings.initialization(
+                #                     time_slice)
+                #                 order_visibility = np.zeros(len(current_tour), dtype=int)
+                #             else:
+                #                 current_order_df, planning_df, current_tour, order_visibility = savings.insert_new(
+                #                     final_tour, planning_df, time_slice, interval)
+                #             # return object: "best_solution", "best_cost", "idle_time", "planning_df",
+                #             # "initial_cost", "initial_solution", "last_improvement", "total_iterations", "runtime", "operator_performance"
+                #             final_tour, final_cost, final_idle_time, planning_df, initial_cost, initial_solution, final_tour_length, last_improvement, total_iterations, runtime, performance_counter, convergence = run_vns(
+                #                 file, current_tour, all_orders_df, order_visibility, planning_df, interval, target_folder_results, self.stop_event, True, exp_id=str(interval) + "_" + str(time_slice), test_name=test_name)
+
+                #             current_time = time.time()
+                #             run_time = (current_time - time_start)/60
+                #             result_df.loc[len(result_df.index)] = [
+                #                 self.set_parameters, interval, time_slice, initial_cost, final_cost, len(final_tour), final_idle_time, final_tour_length, runtime, total_iterations, last_improvement, performance_counter, initial_solution, final_tour, run_time]
+
+                #             # tp = TourPlanVisualizer(dir_name, file, target_folder_results,
+                #             #                         travel_time_matrix, planning_df, final_tour, final_cost, final_idle_time, True, exp_id=exp_id_result, time=time_slice, test_name=test_name)
+                #             # tp.create_tour_plan()
+                #             # # base_dir, tours, time_slice, file_name, is_exp, **exp_params
+                #             # tv = TourVisualizer(dir_name, target_folder_results, final_tour, time_slice,
+                #             #                     file, True, test_name=test_name, exp_id=exp_id_result)
+                #             # tv.run()
+
+                #             result_df.to_csv(os.path.join(target_folder_results, 'result.csv'))
+
+                #             print('')

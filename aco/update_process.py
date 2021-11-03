@@ -4,11 +4,13 @@ from aco.ant import Ant
 import numpy as np
 import pandas as pd
 import vns.src.config.vns_config as cfg 
+import vns.src.config.preprocessing_config as prep_cfg
+
 
 
 class UpdateProcess:
     def __init__(self, graph: VrptwGraph, path_handover, time_slice, interval_length, path_testfile, source,
-                 minutes_per_km, test_type, service_time_matrix=None, order_ids=None, opt_time=False):
+                 minutes_per_km, test_type, opt_time, service_time_matrix=None, order_ids=None):
         # MOD: Marlene
         self.source = source
         if self.source == 'r':
@@ -36,6 +38,8 @@ class UpdateProcess:
 
 
         self.committed_nodes = []
+
+      
 
 
 
@@ -197,28 +201,74 @@ class UpdateProcess:
         return possible_insert_idx
 
     # Check if conditions for insertion are fulfilled
-    def check_condition(self, vehicle_travel_time, i, following_idx) -> bool:
-        if vehicle_travel_time + self.all_nodes[following_idx].demand + self.node_dist_mat[i][following_idx] > self.\
-                graph.vehicle_capacity:  # vehicle_travel_time==vehicle_load
+    # new 
+    def check_condition(self, temp_travel_path, service_time_mat, order_id, minutes_per_km=1) -> bool:
+        tour = temp_travel_path
+        # # test = [0, 77, 78, 83, 85, 0]
+        # # tour = test
+
+        time = 0
+        counter = 0
+        for i in range(1, len(tour)):
+            traffic_phase = "off_peak" if time < prep_cfg.traffic_times["phase_transition"][
+                "from_shift_start"] else "phase_transition" if time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
+            
+            if(order_id[tour[i-1]] != 'order_0'):
+                if(self.graph.all_nodes[tour[i-1]].ready_time  <= (time + service_time_mat[order_id[tour[i-1]]+":"+traffic_phase])):
+                    time = time + \
+                        service_time_mat[order_id[tour[i-1]]+":"+traffic_phase] + \
+                        self.graph.node_dist_mat[tour[i-1]][tour[i]]*minutes_per_km
+                else:
+                    time = self.graph.all_nodes[tour[i-1]].ready_time + \
+                        self.graph.node_dist_mat[tour[i-1]][tour[i]]*minutes_per_km
+            else:
+                if(self.graph.all_nodes[tour[i-1]].ready_time <= time):
+                    time = time + \
+                        self.graph.node_dist_mat[tour[i-1]][tour[i]]*minutes_per_km
+            if (time <= self.graph.all_nodes[tour[i]].due_time):
+                counter += 1
+            else:
+                break
+        
+        orders_no_depot = [i for i in tour if i != 0]
+
+        # if counter == len(orders_no_depot):
+        if counter == len(tour) - 1:
+            return True
+        else:
             return False
+            
+        # temp_travel_time = 0
+        # current_time = 0
 
-        travel_time = self.node_dist_mat[i][following_idx]
-        wait_time = max(self.all_nodes[following_idx].ready_time - vehicle_travel_time - travel_time, 0)
+        
+        # for i in range(0, len(temp_travel_path)-1):
+        #     dist = self.graph.node_dist_mat[temp_travel_path[i]][temp_travel_path[i+1]]*minutes_per_km
+        #     if temp_travel_path[i] != 0:
+        #         wait_time = max(self.graph.all_nodes[temp_travel_path[i+1]].ready_time - current_time - dist, 0)
+        #         current_time += dist + wait_time
+        #     else:
+        #         wait_time = 0
+        #         current_time = max(self.graph.all_nodes[temp_travel_path[i+1]].ready_time, dist)
 
-        # MOD: Marlene
-        current_time = vehicle_travel_time + travel_time + wait_time
-        service_time = VrptwGraph.get_service_time(following_idx, self.service_time_matrix, current_time, self.order_ids)
+        #     service_time = VrptwGraph.get_service_time(temp_travel_path[i+1], self.service_time_matrix, 
+        #                                                     current_time, self.order_ids)
+        #     if self.graph.all_nodes[temp_travel_path[i+1]].due_time < current_time:
+        #         return False
+        #     current_time += service_time
 
-        # Checking to see if you can return to the depot after visiting a particular customer.
-        if vehicle_travel_time + travel_time + wait_time + service_time + self.node_dist_mat[following_idx][0] > \
-                self.all_nodes[0].due_time:
-            return False
 
-        # No service for customers outside of due time.
-        if vehicle_travel_time + travel_time > self.all_nodes[following_idx].due_time:
-            return False
+        #     temp_travel_time += dist + wait_time + service_time
+            
+        
+        # if current_time > cfg.capacity:
+        #     return False
 
-        return True
+        # # think this can be deleted
+        # if temp_travel_time > cfg.capacity:
+        #     return False
+
+        # return True
 
     # Create shuttle tour if node can not included in existing tours
     def new_shuttle_tour(self, node, add_dist):
@@ -229,7 +279,17 @@ class UpdateProcess:
 
         return add_dist
 
+    
+    def get_tour_start_end(self, test_path_depot_idx, ins_ind):
+        for i in range(0, len(test_path_depot_idx)-1):
+            if ins_ind > test_path_depot_idx[i]:
+                start = test_path_depot_idx[i]
+                end = test_path_depot_idx[i+1]
+
+        return start, end
+
     # Insertion of new nodes in current solution
+    # new func
     def insertion(self):
         new_nodes = self.check_new_nodes()
         if new_nodes:
@@ -238,81 +298,145 @@ class UpdateProcess:
                 best_distance = 0
                 best_ins_idx = None
                 best_total_travel_time = 99999
-                insertion = True
-                total_addition = False
                 ins_ind_list = self.insertion_idx()
 
-                # TODO: set self.current best distance to right value
                 if self.opt_time:
-                    self.current_best_distance = 0
+                    self.current_best_distance = Ant.cal_total_travel_distance(self.graph, self.current_best_path)
 
+                cur_depot = -1
+                tour_end = -1
                 for ins_ind in ins_ind_list:
-                    total_travel_time = 0
-                    total_distance = 0
                     test_path = self.current_best_path.copy()
                     test_path.insert(ins_ind, node)
                     test_path_depot_idx = [index for index, value in enumerate(test_path) if value == 0]
-                    depot_num = len(test_path_depot_idx)
+                    if ins_ind > tour_end:
+                        tour_start, tour_end = self.get_tour_start_end(test_path_depot_idx, ins_ind)
+                        
+                        
+                    path_section = test_path[tour_start:tour_end+1]
+                    
+                    if self.check_condition(path_section, self.service_time_matrix, self.order_ids) is False:
+                        continue
 
-                    for depot in test_path_depot_idx:
-                        travel_time = 0
-                        distance = 0
+                    elif self.check_condition(path_section, self.service_time_matrix, self.order_ids):
+                        total_travel_time = Ant.cal_total_travel_time(self.graph, test_path, 
+                                                                        self.service_time_matrix, self.order_ids)
+                        total_distance = Ant.cal_total_travel_distance(self.graph, test_path)
+                    
 
-                        if test_path_depot_idx.index(depot) == depot_num-1 or insertion is False:
-                            insertion = True
-                            break
-
-                        else:
-                            cur_depot = depot+1
-                            idx = test_path_depot_idx.index(depot)+1
-                            next_depot = test_path_depot_idx[idx]+1
-                            path_section = test_path[cur_depot:next_depot]
-                            travel_time += self.node_dist_mat[0][path_section[0]]
-                            distance += self.node_dist_mat[0][path_section[0]]
-                            for i in path_section:
-                                if i != 0:
-                                    following_idx = path_section[path_section.index(i)+1]
-
-                                    if self.check_condition(travel_time, i, following_idx) is False:
-                                        insertion = False
-                                        total_addition = False
-                                        break
-
-                                    else:
-                                        total_addition = True
-                                        
-                                        # MOD: Marlene
-                                        travel_time += self.node_dist_mat[i][following_idx]
-                                        service_time = VrptwGraph.get_service_time(following_idx, self.service_time_matrix,
-                                                                                   travel_time, self.order_ids)
-                                        travel_time += service_time
-
-                                        distance += self.node_dist_mat[i][following_idx]
-
-                        if total_addition:
-                            # TODO: Check why travel_time doesn't match up
-                            total_travel_time += travel_time
-                            total_travel_time = Ant.cal_total_travel_time(self.graph, self.current_best_path, 
-                                                                          self.service_time_matrix, self.order_ids)
-                            total_distance += distance
-
-                        else:
-                            total_travel_time = 99999
-
-                    if total_travel_time < best_total_travel_time:
-                        best_total_travel_time = total_travel_time
-                        best_ins_idx = ins_ind
-                        best_distance = total_distance
+                        if total_travel_time < best_total_travel_time:
+                            best_total_travel_time = total_travel_time
+                            best_ins_idx = ins_ind
+                            best_distance = total_distance
 
                 if best_ins_idx is None:
                     add_dist += self.new_shuttle_tour(node, add_dist)
-                    self.current_best_distance += add_dist
+                    self.current_best_distance = Ant.cal_total_travel_distance(self.graph, self.current_best_path)
+                    if self.opt_time:
+                        self.current_best_time = Ant.cal_total_travel_time(self.graph, self.current_best_path, 
+                                                                            self.service_time_matrix, self.order_ids)
 
                 else:
                     self.current_best_path.insert(best_ins_idx, node)
                     self.current_best_vehicle_num = self.current_best_path.count(0)-1
                     self.current_best_distance = best_distance
-                    self.current_best_time = best_total_travel_time
+                    if self.opt_time:
+                        self.current_best_time = best_total_travel_time
+
+
+    # # Insertion of new nodes in current solution
+    # def insertion(self):
+    #     new_nodes = self.check_new_nodes()
+    #     if new_nodes:
+    #         for node in new_nodes:
+    #             add_dist = 0
+    #             best_distance = 0
+    #             best_ins_idx = None
+    #             best_total_travel_time = 99999
+    #             insertion = True
+    #             total_addition = False
+    #             ins_ind_list = self.insertion_idx()
+
+    #             for ins_ind in ins_ind_list:
+    #                 total_travel_time = 0
+    #                 total_distance = 0
+    #                 test_path = self.current_best_path.copy()
+    #                 test_path.insert(ins_ind, node)
+    #                 test_path_depot_idx = [index for index, value in enumerate(test_path) if value == 0]
+    #                 depot_num = len(test_path_depot_idx)
+
+    #                 for depot in test_path_depot_idx:
+    #                     travel_time = 0
+    #                     distance = 0
+
+    #                     # if current depot = last depot
+    #                     if test_path_depot_idx.index(depot) == depot_num-1 or insertion is False:
+    #                         insertion = True
+    #                         break
+
+    #                     else:
+    #                         cur_depot = depot+1
+    #                         idx = test_path_depot_idx.index(depot)+1
+    #                         next_depot = test_path_depot_idx[idx]+1
+    #                         path_section = test_path[cur_depot:next_depot]
+    #                         travel_time += self.node_dist_mat[0][path_section[0]]
+    #                         distance += self.node_dist_mat[0][path_section[0]]
+    #                         for i in path_section:
+    #                             if i != 0:
+    #                                 following_idx = path_section[path_section.index(i)+1]
+
+    #                                 if self.check_condition(travel_time, i, following_idx) is False:
+    #                                     insertion = False
+    #                                     total_addition = False
+    #                                     break
+
+    #                                 else:
+    #                                     total_addition = True
+    #                                     travel_time += self.node_dist_mat[i][following_idx] + self.all_nodes[
+    #                                         following_idx].service_time
+    #                                     distance += self.node_dist_mat[i][following_idx]
+
+    #                     if total_addition:
+    #                         total_travel_time += travel_time
+    #                         total_distance += distance
+
+    #                     else:
+    #                         total_travel_time = 99999
+
+    #                 if total_travel_time < best_total_travel_time:
+    #                     best_total_travel_time = total_travel_time
+    #                     best_ins_idx = ins_ind
+    #                     best_distance = total_distance
+
+    #             if best_ins_idx is None:
+    #                 add_dist += self.new_shuttle_tour(node, add_dist)
+    #                 self.current_best_distance += add_dist
+
+    #             else:
+    #                 self.current_best_path.insert(best_ins_idx, node)
+    #                 self.current_best_vehicle_num = self.current_best_path.count(0)-1
+    #                 self.current_best_distance = best_distance
+
+    # Check if conditions for insertion are fulfilled
+    # def check_condition(self, vehicle_travel_time, i, following_idx) -> bool:
+    #     if vehicle_travel_time + self.all_nodes[following_idx].demand + self.node_dist_mat[i][following_idx] > self.\
+    #             graph.vehicle_capacity:  # vehicle_travel_time==vehicle_load
+    #         return False
+
+    #     travel_time = self.node_dist_mat[i][following_idx]
+    #     wait_time = max(self.all_nodes[following_idx].ready_time - vehicle_travel_time - travel_time, 0)
+    #     service_time = self.all_nodes[following_idx].service_time
+
+    #     Checking to see if you can return to the depot after visiting a particular customer.
+    #     if vehicle_travel_time + travel_time + wait_time + service_time + self.node_dist_mat[following_idx][0] > \
+    #             self.all_nodes[0].due_time:
+    #         return False
+
+    #     No service for customers outside of due time.
+    #     if vehicle_travel_time + travel_time > self.all_nodes[following_idx].due_time:
+    #         return False
+
+    #     return True
 
     def _calculate_costs_new(self, min_per_km=1):
         total_cost = 0
