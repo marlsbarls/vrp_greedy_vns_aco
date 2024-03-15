@@ -204,9 +204,6 @@ class UpdateProcess:
     # new 
     def check_condition(self, temp_travel_path, service_time_mat, order_id, minutes_per_km=1) -> bool:
         tour = temp_travel_path
-        # # test = [0, 77, 78, 83, 85, 0]
-        # # tour = test
-
         time = 0
         counter = 0
         for i in range(1, len(tour)):
@@ -289,7 +286,6 @@ class UpdateProcess:
         return start, end
 
     # Insertion of new nodes in current solution
-    # new func
     def insertion(self):
         new_nodes = self.check_new_nodes()
         if new_nodes:
@@ -344,120 +340,20 @@ class UpdateProcess:
                         self.current_best_time = best_total_travel_time
 
 
-    # # Insertion of new nodes in current solution
-    # def insertion(self):
-    #     new_nodes = self.check_new_nodes()
-    #     if new_nodes:
-    #         for node in new_nodes:
-    #             add_dist = 0
-    #             best_distance = 0
-    #             best_ins_idx = None
-    #             best_total_travel_time = 99999
-    #             insertion = True
-    #             total_addition = False
-    #             ins_ind_list = self.insertion_idx()
-
-    #             for ins_ind in ins_ind_list:
-    #                 total_travel_time = 0
-    #                 total_distance = 0
-    #                 test_path = self.current_best_path.copy()
-    #                 test_path.insert(ins_ind, node)
-    #                 test_path_depot_idx = [index for index, value in enumerate(test_path) if value == 0]
-    #                 depot_num = len(test_path_depot_idx)
-
-    #                 for depot in test_path_depot_idx:
-    #                     travel_time = 0
-    #                     distance = 0
-
-    #                     # if current depot = last depot
-    #                     if test_path_depot_idx.index(depot) == depot_num-1 or insertion is False:
-    #                         insertion = True
-    #                         break
-
-    #                     else:
-    #                         cur_depot = depot+1
-    #                         idx = test_path_depot_idx.index(depot)+1
-    #                         next_depot = test_path_depot_idx[idx]+1
-    #                         path_section = test_path[cur_depot:next_depot]
-    #                         travel_time += self.node_dist_mat[0][path_section[0]]
-    #                         distance += self.node_dist_mat[0][path_section[0]]
-    #                         for i in path_section:
-    #                             if i != 0:
-    #                                 following_idx = path_section[path_section.index(i)+1]
-
-    #                                 if self.check_condition(travel_time, i, following_idx) is False:
-    #                                     insertion = False
-    #                                     total_addition = False
-    #                                     break
-
-    #                                 else:
-    #                                     total_addition = True
-    #                                     travel_time += self.node_dist_mat[i][following_idx] + self.all_nodes[
-    #                                         following_idx].service_time
-    #                                     distance += self.node_dist_mat[i][following_idx]
-
-    #                     if total_addition:
-    #                         total_travel_time += travel_time
-    #                         total_distance += distance
-
-    #                     else:
-    #                         total_travel_time = 99999
-
-    #                 if total_travel_time < best_total_travel_time:
-    #                     best_total_travel_time = total_travel_time
-    #                     best_ins_idx = ins_ind
-    #                     best_distance = total_distance
-
-    #             if best_ins_idx is None:
-    #                 add_dist += self.new_shuttle_tour(node, add_dist)
-    #                 self.current_best_distance += add_dist
-
-    #             else:
-    #                 self.current_best_path.insert(best_ins_idx, node)
-    #                 self.current_best_vehicle_num = self.current_best_path.count(0)-1
-    #                 self.current_best_distance = best_distance
-
-    # Check if conditions for insertion are fulfilled
-    # def check_condition(self, vehicle_travel_time, i, following_idx) -> bool:
-    #     if vehicle_travel_time + self.all_nodes[following_idx].demand + self.node_dist_mat[i][following_idx] > self.\
-    #             graph.vehicle_capacity:  # vehicle_travel_time==vehicle_load
-    #         return False
-
-    #     travel_time = self.node_dist_mat[i][following_idx]
-    #     wait_time = max(self.all_nodes[following_idx].ready_time - vehicle_travel_time - travel_time, 0)
-    #     service_time = self.all_nodes[following_idx].service_time
-
-    #     Checking to see if you can return to the depot after visiting a particular customer.
-    #     if vehicle_travel_time + travel_time + wait_time + service_time + self.node_dist_mat[following_idx][0] > \
-    #             self.all_nodes[0].due_time:
-    #         return False
-
-    #     No service for customers outside of due time.
-    #     if vehicle_travel_time + travel_time > self.all_nodes[following_idx].due_time:
-    #         return False
-
-    #     return True
 
     def _calculate_costs_new(self, min_per_km=1):
         total_cost = 0
-        # calculate travel time
         travel_time = 0
         current_time = 0
         vehicle_num = 0
         dist_dict = {}
-        # test_dict = {}
-        # test_path = []
+
         for i in range(0, len(self.current_best_path)-1):
-            # if self.best_path[i] == 0:
-            #     if vehicle_num == 9:
-            #         print('')
             if self.current_best_path[i] == 0 and i != 0:
                 dist_dict[vehicle_num] = travel_time
-                # test_dict[vehicle_num] = test_path
                 current_time = 0
                 vehicle_num += 1
                 travel_time = 0
-                # test_path = []
             dist = self.graph.node_dist_mat[self.current_best_path[i]][self.current_best_path[i+1]]*min_per_km
             # no wait time if depot 
             if self.current_best_path[i] != 0:

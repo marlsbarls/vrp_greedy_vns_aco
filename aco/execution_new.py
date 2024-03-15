@@ -12,7 +12,7 @@ from vns.src.helpers.DistanceMatrix import DistanceMatrix
 
 class Execution():
     def __init__(self, test_files, dynamic, data_type):
-        # MOD: Marlene
+        # MOD: 
         self.test_files = test_files
         self.dynamic = dynamic
         self.data_type = data_type
@@ -58,7 +58,7 @@ class Execution():
         # # self.interval_length = 21
         # # self.shift_length = 42  # 8 hours = 480
 
-        # Mod: Marlene 
+        # Mod:  
         # opt_time = True minimizes travel time instead of travel distance
         # original = False
         self.opt_time = True 

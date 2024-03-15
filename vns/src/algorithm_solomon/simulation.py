@@ -124,11 +124,6 @@ class VNSSimulationSolomon():
                 savings = SavingsAlgorithm(
                     all_orders_df, dist_matrix, capacity, servicetime, readytime, duetime, True)
 
-                # Current_tour = savings.initialization()
-                # print(Current_tour)
-                # Current_tour = savings.insert_new(
-                #     Current_tour, 30, interval_length)
-                # print(Current_tour)
 
                 interval_length = capacity / total_intervals
 

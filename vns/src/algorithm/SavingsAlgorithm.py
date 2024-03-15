@@ -9,7 +9,6 @@ class SavingsAlgorithm:
         self.all_orders_df = all_orders_df
         self.travel_time_matrix = travel_time_matrix
         self.service_time_matrix = service_time_matrix
-
         # consider temporal and spaical distance
         # False is original
         self.consider_time = consider_time 
@@ -80,7 +79,6 @@ class SavingsAlgorithm:
         return current_orders
 
     def initialization(self, time=0):
-
         current_order_df = self.all_orders_df[(
             self.all_orders_df.AVAILABLETIME <= time)]
         demand = current_order_df['DEMAND'].to_numpy()
@@ -186,14 +184,9 @@ class SavingsAlgorithm:
         
 
         cost = total_cost(Ini_tour, travel_time, self.service_time_matrix, self.all_orders_df['READYTIME'], all_order_ids)
-
-        # Ini_tour_4 = Ini_tour[4]
-        # time_check = self.time_checker_new(Ini_tour_4, travel_time, self.service_time_matrix, readytime, duetime, all_order_ids)
-
         return current_order_df, planning_df, Ini_tour
 
     def insert_new(self, current_tour, planning_df, time, interval):
-
         # Think this only matters in vns
         planning_df.loc[planning_df['SCHEDULED_TIME']
                         <= time, 'VISITED'] = True

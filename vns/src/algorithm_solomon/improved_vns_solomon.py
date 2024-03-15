@@ -19,7 +19,6 @@ dir_name = os.path.dirname(os.path.realpath('__file__'))
 
 ##############################################################
 # Basic Functions
-
 def get_customer_size(current_tour):
     counter = 1
     for tour in current_tour:
@@ -207,7 +206,6 @@ def two_opt_search(sub_tour, distance, travel_time, service_time, ready_time, du
 
 
 #  3-opt:
-
 def exchange(tour, opt_case, a, c, e, distance):
     """
     Reconnects the tour given three edges to swap.
@@ -351,10 +349,6 @@ def two_optstar_search(sub_tour, distance, travel_time, service_time, ready_time
 
 
 # # 3. Metaheuristic: VNS
-
-# TODO: change access of service_time
-
-
 def local_search(Sub_tour, distance, travel_time, service_time, ready_time, due_time, demand, temperature, visibility, Local_Tour, capacity, performance_counter, sim_anneal_accept, improvement_per_iteration):
     [Tour_two_opt, Improved_Route_two_opt, Improvement_two_opt] = two_opt_search(copy.deepcopy(
         Sub_tour), distance, travel_time, service_time, ready_time, due_time, temperature, visibility)
@@ -650,7 +644,7 @@ def run_vns(file, ini_tour, all_order_df, capacity, visibility, result_path, is_
     }
 
     '''---------------------------------------------------------------
-                         Actual Algortihm
+                         Execution Algortihm
     ---------------------------------------------------------------'''
     if(not is_exp):
         target_folder = os.path.join(
@@ -670,9 +664,7 @@ def run_vns(file, ini_tour, all_order_df, capacity, visibility, result_path, is_
     Sub_tour_VNS = copy.deepcopy(ini_tour)
     # MAINCODE
     for counter in range(cfg.vns["MaxRestarts"]):
-
         Sub_tour_local_search = copy.deepcopy(Sub_tour_VNS)
-
         # Define the set of the neighborhood structure for local research
         Shaking_Neighbor = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 

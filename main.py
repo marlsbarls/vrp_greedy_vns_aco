@@ -30,13 +30,6 @@ load_dotenv(os.path.join(BASE_DIR))
 
 # from vns.src.preprocessing.DataPreparation import DataPreparation
 # from vns.src.preprocessing.preprocessing import Preprocessing
-# # file_names = ["2020-07-07", "2020-07-08", "2020-08-14", "2020-08-15"]
-# file_names = ["2020-07-07"]
-# for file in file_names:
-#     dp = DataPreparation(BASE_DIR, file)
-#     dp.rundatapreparation()
-#     pp = Preprocessing(BASE_DIR, file)
-#     pp.runpreprocessing()
 
 
 # test type: static or dynamic
@@ -51,31 +44,6 @@ if source != 'surve_mobility' and source != 'solomon':
 if test_type != 'dynamic' and test_type != 'static':
     sys.exit('Set variable source to "dynamic" or "static')
 
-# test files surve_mobility
-if source == 'surve_mobility':
-    test_files = ['2020-07-07', '2020-07-08', '2020-08-15', '2020-08-14']
-    # test_files = ['2020-07-07', '2020-07-08', '2020-08-15', '2020-08-14']
-    # test_files = ['2020-07-08', '2020-08-15', '2020-08-14']
-    # test_files = ['2020-08-15', '2020-08-14']
-    # test_files = ['2020-07-07', '2020-07-08']
-    # test_files = ['2020-07-08']
-    # test_files = ['2020-07-07']
-    # test_files = ['2020-08-15']
-    # test_files = ['2020-08-14']
-
-    # run greedy
-    # greedy = Surve_Greedy(test_files, test_type, source)
-    # greedy.run_greedy()
-
-    # run aco
-    if __name__ == '__main__':
-        aco = Execution(test_files, test_type, source)
-        aco.run_macs()
-        # aco.validation_macs()
-
-    # run vns
-    # vns = VNSSimulation(test_files, test_type)
-    # vns.run_simulation()
 
 
 if source == 'solomon':
@@ -105,11 +73,6 @@ if source == 'solomon':
 ########################################################
 # Contents from VNS main
 ########################################################
-# Run chargery VNS
-# Testcases & experiments should be defined in /src/algorithm/simulation.py
-
-# import src.algorithm.simulation
-# import src.algorithm.greedy_test
 
 
 # Run solomon VNS

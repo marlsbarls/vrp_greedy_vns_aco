@@ -201,7 +201,6 @@ class SavingsAlgorithm:
         current_order_df = self.all_orders_df[(
             self.all_orders_df.AVAILABLETIME <= time) & self.all_orders_df['CUST_NO'].isin(not_scheduled_list)]
 
-        # Sollte hier vielleicht current_order_df stehen?
         demand = self.all_orders_df['DEMAND'].to_numpy()
         new_orders = current_order_df['CUST_NO'].tolist()
         end_orders = []

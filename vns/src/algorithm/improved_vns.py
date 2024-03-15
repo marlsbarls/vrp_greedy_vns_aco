@@ -62,37 +62,6 @@ def get_customer_size(current_tour):
     return counter
 
 
-# def total_cost(tours, travel_time, service_time, order_ids):
-#     total_cost = 0
-#     for tour in tours:
-#         tour_time = 0
-#         for i in range(len(tour) - 1):
-#             traffic_phase = "off_peak" if tour_time < prep_cfg.traffic_times["phase_transition"][
-#                 "from_shift_start"] else "phase_transition" if tour_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
-#             tour_time += service_time[order_ids[tour[i]]+":" +
-#                                       traffic_phase] if order_ids[tour[i]] != "order_0" else 0
-#             tour_time += travel_time[tour[i]][tour[i + 1]]
-#         tour_cost = (tour_time*cfg.cost_per_minute) + \
-#             cfg.cost_per_driver
-#         total_cost += tour_cost
-#     return total_cost
-
-
-# def total_cost(tours, travel_time, service_time, ready_time, order_ids):
-#     total_cost = 0
-#     for tour in tours:
-#         tour_time = 0
-#         for i in range(len(tour) - 1):
-#             traffic_phase = "off_peak" if tour_time < prep_cfg.traffic_times["phase_transition"][
-#                 "from_shift_start"] else "phase_transition" if tour_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
-#             tour_time += max(service_time[order_ids[tour[i]]+":" +
-#                                           traffic_phase] if order_ids[tour[i]] != "order_0" else 0 + travel_time[tour[i]][tour[i + 1]], ready_time[tour[i+1]]-tour_time)
-#             # tour_time += travel_time[tour[i]][tour[i + 1]]
-#         tour_cost = (tour_time*cfg.cost_per_minute) + \
-#             cfg.cost_per_driver
-#         total_cost += tour_cost
-#     return total_cost
-
 def total_cost(tours, travel_time_mat, service_time, ready_time, order_ids):
     total_cost = 0
     for tour in tours:
@@ -125,7 +94,6 @@ def cal_total_time(tours, travel_time, service_time, ready_time, order_ids):
                 "from_shift_start"] else "phase_transition" if tour_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
             tour_time += max(service_time[order_ids[tour[i]]+":" +
                                           traffic_phase] if order_ids[tour[i]] != "order_0" else 0 + travel_time[tour[i]][tour[i + 1]], ready_time[tour[i+1]]-tour_time)
-            #tour_time += travel_time[tour[i]][tour[i + 1]]
         total_time += tour_time
     return total_time
 
@@ -160,33 +128,6 @@ def idle_time(tours, travel_time_matrix, service_time, ready_time, order_ids, in
                 time = ready_time[tour[i+1]]
         total_idle_time += tour_idle_time
     return total_idle_time
-
-# def time_checker(tour, travel_time_matrix, service_time_matrix, ready_time, due_time, order_ids):
-#     cur_time = 0
-#     for i in range(len(tour) - 1):
-#         traffic_phase = "off_peak" if cur_time < prep_cfg.traffic_times["phase_transition"][
-#         "from_shift_start"] else "phase_transition" if cur_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
-#         dist = travel_time_matrix[tour[i]][tour[i + 1]]
-#         if i == 0:
-#             wait_time = 0
-#             cur_time = max(ready_time[tour[i+1]], dist)
-
-#             if cur_time > due_time[tour[i+1]]:
-#                 return False
-#         else:
-#             service_time = service_time_matrix[order_ids[tour[i]]+":" +
-#                                         traffic_phase]
-            
-#             wait_time = max(ready_time[tour[i+1]]-cur_time - dist, 0)
-#             cur_time += dist + wait_time + service_time
-
-#             if cur_time > due_time[tour[i+1]]:
-#                 return False
-        
-#     if cur_time > cfg.capacity:
-#         return False
-#     else:
-#         return True
 
 
 # # original
@@ -248,8 +189,6 @@ def check_sequence(sequence, tour):
         return False
 
 # Sim Anneal Accept is only for analysing simulated annealing acceptance rate
-
-
 def simulated_annealing_improvement(temp, improvement, sim_anneal_accept):
     if temp > 0:
         q = np.random.uniform(0, 1)
@@ -283,53 +222,6 @@ def visibility_index(sub_tour, visibility):
 
 
 # Exportig Functions
-
-
-# def create_planning_df(tours, current_order_df, travel_time_matrix, service_time_matrix, ready_time, due_time, planning_df=None, interval=0):
-#     if planning_df is None:
-#         planning_df = current_order_df[[
-#             'CUST_NO', 'SERVICETIME', 'order_id', 'end_poi_id']].copy(deep=True)
-#         planning_df['VISITED'] = False
-#         planning_df['SCHEDULED_TIME'] = np.NaN
-#         planning_df['SCHEDULED_TOUR'] = np.NaN
-
-#     tour_id = 0
-#     for tour in tours:
-#         if(interval == 0):
-#             time = current_order_df.loc[current_order_df['CUST_NO']
-#                                         == tour[1], 'READYTIME'].values[0]
-#         else:
-#             ready_time = current_order_df.loc[current_order_df['CUST_NO']
-#                                               == tour[1], 'READYTIME'].values[0]
-#             time = math.ceil(ready_time/interval) * interval
-#         for i in range(1, len(tour)-1):
-#             order_i = current_order_df.loc[current_order_df['CUST_NO']
-#                                            == tour[i], 'order_id'].values[0]
-#             order_i_1 = current_order_df.loc[current_order_df['CUST_NO']
-#                                              == tour[i-1], 'order_id'].values[0]
-#             traffic_phase = "off_peak" if time < prep_cfg.traffic_times["phase_transition"][
-#                 "from_shift_start"] else "phase_transition" if time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
-
-#             if(order_i_1 != 'order_0' and order_i != 'order_0'):
-#                 if(current_order_df.loc[current_order_df['CUST_NO'] == tour[i-1], 'READYTIME'].values[0] <= (time + service_time_matrix[order_i_1+":"+traffic_phase])):
-#                     time = time + \
-#                         service_time_matrix[order_i_1+":"+traffic_phase] + \
-#                         travel_time_matrix[order_i_1+":"+order_i]
-#                 else:
-#                     time = current_order_df.loc[current_order_df['CUST_NO'] == tour[i-1],
-#                                                 'READYTIME'].values[0] + travel_time_matrix[order_i_1+":"+order_i]
-#             else:
-#                 if(current_order_df.loc[current_order_df['CUST_NO'] == tour[i-1], 'READYTIME'].values[0] <= time):
-#                     time = time + travel_time_matrix[order_i_1+":"+order_i]
-
-#             planning_df.at[tour[i], 'SCHEDULED_TIME'] = time
-#             planning_df.at[tour[i], 'SCHEDULED_TOUR'] = tour_id
-
-#         tour_id += 1
-
-#     return planning_df
-
-
 def create_planning_df(tours, current_order_df, travel_time_matrix, service_time_matrix, ready_time, due_time, planning_df=None, interval=0):
     if planning_df is None:
         planning_df = current_order_df[[
@@ -358,12 +250,12 @@ def create_planning_df(tours, current_order_df, travel_time_matrix, service_time
             traffic_phase = "off_peak" if time < prep_cfg.traffic_times["phase_transition"][
                 "from_shift_start"] else "phase_transition" if time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
 
-            # Wenn 1. Order = 0:
+            # If 1. Order = 0:
             if(order_i_1 == 'order_0'):
                 ready_time = current_order_df.loc[current_order_df['CUST_NO']
                                                   == tour[i], 'READYTIME'].values[0]
                 travel_time = travel_time_matrix["order_0:" + order_i]
-                # wenn Statische Lösung:
+                # if static solution:
                 if(interval == 0):
                     # wenn der Auftrag bereits da ist und verplant werden kann, dann wird der Auftrag so früh wie möglich geplant.
                     # Der frühstmögliche Zeitpunkt ist somit der Zeitpunkt, zu dem die Strecke zurückgelegt wurde
@@ -509,39 +401,6 @@ def create_planning_df_new(tours, all_orders_df, service_time_matrix, ready_time
     return planning_df
             
 
-        
-    # tour_id = 0
-    # for tour in tours:
-    #     current_time = 0
-    #     travel_time = 0
-    #     for i in range(len(tour) - 1):
-    #         traffic_phase = "off_peak" if current_time < prep_cfg.traffic_times["phase_transition"][
-    #         "from_shift_start"] else "phase_transition" if current_time < prep_cfg.traffic_times["rush_hour"]["from_shift_start"] else "rush_hour"
-    #         if tour[i] == 0:
-    #             travel_time += travel_time_matrix[tour[i]][tour[i + 1]]
-    #             current_time += max(travel_time_matrix[tour[i]][tour[i + 1]], ready_time[tour[i+1]])
-    #         else:
-    #             travel_time += max(service_time_matrix[order_ids[tour[i]]+":" +
-    #                                     traffic_phase] + travel_time_matrix[tour[i]][tour[i + 1]], 
-    #                                     ready_time[tour[i+1]]-current_time)
-    #             current_time += max(service_time_matrix[order_ids[tour[i]]+":" +
-    #                                     traffic_phase] + travel_time_matrix[tour[i]][tour[i + 1]], 
-    #                                     ready_time[tour[i+1]]-current_time)
-        
-        
-
-    #         planning_df.at[tour[i], 'SCHEDULED_TIME'] = round(current_time, 2)
-    #         if planning_df.at[tour[i], 'SCHEDULED_TIME'] > planning_df.at[tour[i], 'DUE_TIME']:
-    #                 planning_df.at[tour[i], 'TIME_CHECK'] = False
-    #         else:
-    #                 planning_df.at[tour[i], 'TIME_CHECK'] = True
-
-    #         planning_df.at[tour[i], 'SCHEDULED_TOUR'] = tour_id
-
-    #     tour_id += 1
-
-    return planning_df
-
 # # Local search operators
 
 # 2-opt (operating one one route)
@@ -660,8 +519,6 @@ def three_opt_search_best_improvement(tour, travel_time, service_time, ready_tim
     return best_move
 
 # 2-opt* (Operating on 2 routes)
-
-
 def three_opt_search(sub_tour, travel_time, service_time, ready_time, due_time, temperture, order_ids, visibility):
     Best_Imp = float('-inf')
     Tour = []
@@ -740,8 +597,6 @@ def two_optstar_search(sub_tour, travel_time, service_time, ready_time, due_time
 # Input: Shaking solution
 # Function: Calculates best improvement with each operator, accepts best solution with probability of simulated annealing
 # Output: New local solution
-
-
 def local_search(Sub_tour, travel_time, service_time, ready_time, due_time, demand, temperature, order_ids, visibility, Local_Tour, performance_counter, sim_anneal_accept, improvement_per_iteration):
 
     [Tour_two_opt, Improved_Route_two_opt, Improvement_two_opt] = two_opt_search(copy.deepcopy(
@@ -789,7 +644,6 @@ def local_search(Sub_tour, travel_time, service_time, ready_time, due_time, dema
 
 
 # Shaking
-
 def sort_tours(Sub_tour):
     sorted_tours = sorted(Sub_tour, key=len)
     divider = len(sorted_tours[int(len(sorted_tours)/2)])

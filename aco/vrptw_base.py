@@ -26,8 +26,6 @@ class Node:
         self.ready_time = ready_time
         self.due_time = due_time
         self.service_time = service_time
-
-
         # # MOD: see above
         # if test_type == 'static':
         #     self.available_time = 0
@@ -35,8 +33,6 @@ class Node:
         #     self.available_time = available_time
 
         self.available_time = available_time
-        
-        
         self.x_end = x_end
         self.y_end = y_end
         
@@ -68,18 +64,16 @@ class VrptwGraph:
         self.node_num, self.nodes, self.node_dist_mat, self.vehicle_num, self.vehicle_capacity, self.all_nodes \
             = self.create_from_file(file_path, path_handover)
 
-        # rho 信息素挥发速度
         # Pheromone evaporation rate
         self.rho = rho
 
-        # 创建信息素矩阵
         # Creating a Pheromone Matrix
         self.nnh_travel_path, self.init_pheromone_val, _ = self.nearest_neighbor_heuristic()
         self.init_pheromone_val = 1 / (self.init_pheromone_val * self.node_num)
 
         self.pheromone_mat = np.ones((self.node_num, self.node_num)) * self.init_pheromone_val
 
-        # 启发式信息矩阵 Heuristic Information Matrix
+        # Heuristic Information Matrix
         self.heuristic_info_mat = 1 / self.node_dist_mat
 
     def haversine(self, latitude_target, longitude_target, latitude_origin, longitude_origin):
@@ -138,7 +132,6 @@ class VrptwGraph:
     def copy(self, init_pheromone_val):
         new_graph = copy.deepcopy(self)
 
-        # 信息素
         # pheromones
         new_graph.init_pheromone_val = init_pheromone_val
         new_graph.pheromone_mat = np.ones((new_graph.node_num, new_graph.node_num)) * init_pheromone_val
@@ -147,7 +140,6 @@ class VrptwGraph:
 
     # MOD: Argument path_handover is passed to be able to address nodes included in handover file
     def create_from_file(self, file_path, path_handover):
-        # 从文件中读取服务点、客户的位置
         # Read the location of service points and customers from a file.
         self.node_list = []
         nodes = []
@@ -198,7 +190,6 @@ class VrptwGraph:
         
         node_num = len(all_nodes)
 
-        # 创建距离矩阵
         # Create distance matrix
         node_dist_mat = np.zeros((node_num, node_num))
 
@@ -223,8 +214,6 @@ class VrptwGraph:
 
     # MOD: New method to calculate Haversine distance (retrieved from Preprocessing). An asymmetric matrix is generated,
     # by this, a location change can be taken into account
-
-
     def calculate_dur_r(self, node_a, node_b, orientation):
         if orientation == 'ij':
             return self.haversine(node_b.x, node_b.y, node_a.x_end, node_a.y_end) * cfg.minutes_per_kilometer
@@ -237,7 +226,7 @@ class VrptwGraph:
 
     def global_update_pheromone(self, best_path, best_path_distance):
         '''
-        更新信息素矩阵 Updating the pheromone matrix
+        Updating the pheromone matrix
         :return:
         '''
         self.pheromone_mat = (1-self.rho) * self.pheromone_mat
@@ -262,19 +251,12 @@ class VrptwGraph:
         current_time = 0
         vehicle_num = 0
         dist_dict = {}
-        # test_dict = {}
-        # test_path = []
         for i in range(0, len(path)-1):
-            # if path[i] == 0:
-                # if vehicle_num == 9:
-                #     print('')
             if path[i] == 0 and i != 0:
                 dist_dict[vehicle_num] = travel_time
-                # test_dict[vehicle_num] = test_path
                 current_time = 0
                 vehicle_num += 1
                 travel_time = 0
-                # test_path = []
             dist = self.node_dist_mat[path[i]][path[i+1]]*self.minutes_per_km
             # no wait time if depot 
             if path[i] != 0:
@@ -288,10 +270,8 @@ class VrptwGraph:
                                                             current_time, self.order_ids)
             current_time += service_time
             travel_time += dist + wait_time + service_time
-            # test_path.append(path[i])
             
         dist_dict[vehicle_num] = travel_time
-        # test_dict[vehicle_num] = test_path
 
         total_travel_time = sum(dist_dict.values())
 
@@ -449,8 +429,6 @@ class VrptwGraph:
         temp_travel_path.append(0)
         tour = temp_travel_path
 
-        # test = [0, 77, 78, 83, 85, 0]
-        # tour = test
         time = 0
         counter = 0
         for i in range(1, len(tour)):
@@ -482,43 +460,7 @@ class VrptwGraph:
             return True
         else:
             return False
-        
-        # temp_travel_path = travel_path.copy()
-        # temp_travel_path.append(next_index)
-        # temp_travel_path.append(0)
-        # temp_travel_time = 0
-        # current_time = 0
 
-        # for i in range(0, len(temp_travel_path)-1):
-        #     dist = self.node_dist_mat[temp_travel_path[i]][temp_travel_path[i+1]]*minutes_per_km
-        #     if temp_travel_path[i] != 0:
-        #         wait_time = max(self.all_nodes[temp_travel_path[i+1]].ready_time - current_time - dist, 0)
-        #         current_time += dist + wait_time
-        #     else:
-        #         wait_time = 0
-        #         current_time = max(self.all_nodes[temp_travel_path[i+1]].ready_time, dist)
-
-        #     service_time = VrptwGraph.get_service_time(temp_travel_path[i+1], self.service_time_matrix, 
-        #                                                     current_time, self.order_ids)
-
-        #     if self.all_nodes[temp_travel_path[i+1]].due_time < current_time:
-        #         return False
-
-        #     current_time += service_time
-            
-
-        #     temp_travel_time += dist + wait_time + service_time
-            
-        # # dist_depot = self.graph.node_dist_mat[temp_travel_path[i+1]][0]*minutes_per_km
-        # if current_time > cfg.capacity:
-        #     return False
-
-        # # think this can be deleted
-        # if temp_travel_time > cfg.capacity:
-        #     return False
-
-        # return True
-    
     def nearest_neighbor_heuristic(self, max_vehicle_num=None):
         index_to_visit = []
 
@@ -564,7 +506,7 @@ class VrptwGraph:
 
     def _cal_nearest_next_index(self, index_to_visit, current_index, travel_path, minutes_per_km=1):
         '''
-        找到最近的可达的next_index Find the nearest reachable next_index
+        next_index Find the nearest reachable next_index
         :param index_to_visit:
         :return:
         '''
@@ -572,12 +514,9 @@ class VrptwGraph:
         nearest_distance = None
         nearest_travel_time = None
         for next_index in index_to_visit:
-            # if len(travel_path) > 20:
-            #     print('')
             test_path = travel_path.copy()
             test_path.append(next_index)
             test_path.append(0)
-            # split path at 0 for 
 
             time_check = self._check_condition(travel_path, next_index, self.service_time_matrix, self.order_ids)
             if not time_check:

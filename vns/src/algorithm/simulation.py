@@ -35,9 +35,6 @@ class VNSSimulation():
         }
 
     def run_simulation(self):
-
-
-        
         pd.set_option("display.max_colwidth", 10000)
         dir_name = os.path.dirname(os.path.realpath('__file__'))
         file_names = self.test_files
@@ -96,30 +93,9 @@ class VNSSimulation():
             Path(os.path.join(target_folder_results, "tour_visuals")).mkdir(parents=True, exist_ok=True)
 
 
-            #################### TEST
-            # Path example that minimizes travel time but doesn't consider right due time
-
-            # # OLD CHECK CONDITION
-            # # test_2 = [[0, 35, 38, 43, 15, 31, 56, 34, 44, 32, 40, 45, 41, 46, 24, 39, 0], [0, 1, 33, 36, 37, 28, 26, 7, 47, 22, 20, 21, 23, 49, 30, 9, 12, 13, 11, 10, 27, 70, 3, 5, 0], [0, 25, 16, 19, 14, 18, 2, 48, 57, 61, 42, 29, 17, 8, 67, 6, 91, 99, 102, 96, 93, 94, 4, 0], [0, 50, 51, 55, 54, 60, 77, 76, 75, 80, 53, 79, 78, 52, 0], [0, 58, 59, 63, 64, 62, 65, 0], [0, 66, 71, 68, 69, 73, 72, 74, 81, 83, 85, 87, 84, 86, 82, 89, 90, 97, 88, 0], [0, 92, 95, 98, 104, 103, 105, 100, 101, 106, 107, 0]]
-            # # test_2 = [[0, 66, 71, 68, 69, 67, 81, 82, 86, 87, 89, 83, 106, 72, 73, 0], [0, 35, 49, 0], [0, 5, 4, 6, 43, 15, 18, 14, 2, 48, 42, 29, 3, 27, 9, 10, 11, 12, 13, 30, 39, 0], [0, 50, 51, 54, 61, 77, 76, 75, 70, 80, 53, 79, 78, 0, 38, 33, 36, 1, 0], [0, 44, 34, 19, 37, 47, 52, 24, 32, 16, 94, 97, 105, 90, 74, 0], [0, 25, 8, 17, 31, 28, 26, 7, 22, 20, 21, 41, 45, 23, 46, 40, 0], [0, 55, 56, 57, 0], [0, 58, 59, 60, 62, 0], [0, 65, 0], [0, 63, 64, 0], [0, 85, 88, 91, 95, 99, 102, 0], [0, 84, 0], [0, 92, 96, 98, 93, 103, 0], [0, 104, 0], [0, 100, 101, 107, 0]]
-
-            # test_2 = [[0, 36, 37, 1, 48, 64, 24, 71, 79, 0], [0, 55, 39, 0], [0, 35, 38, 43, 15, 57, 69, 65, 67, 62, 25, 59, 88, 101, 60, 0], [0, 85, 84, 87, 86, 100, 52, 97, 0], [0, 28, 33, 31, 42, 29, 26, 22, 20, 77, 7, 3, 80, 96, 98, 2, 93, 17, 6, 4, 5, 0], [0, 50, 30, 49, 54, 74, 72, 8, 73, 14, 18, 94, 19, 0], [0, 58, 47, 76, 75, 70, 81, 10, 13, 12, 103, 90, 53, 0], [0, 66, 63, 68, 16, 82, 78, 0], [0, 56, 9, 11, 61, 51, 0], [0, 44, 32, 34, 46, 45, 23, 21, 41, 40, 89, 105, 0], [0, 91, 92, 95, 99, 102, 104, 27, 106, 83, 0], [0, 107, 0]]                                               
-            # df_test_2 = create_planning_df_new(test_2, all_orders_df, service_time_matrix, all_orders_df['READYTIME'], order_ids, all_orders_df['DUETIME'])
-
-            
-            
-            
-            # df_test_2.to_csv(os.path.join('/Users/marlenebuhl/Documents/University/thesis/coding_part/thesis_marlene/results/data_preparation', 'test.csv'))
-            # print(df_test_2)
-
-
-            ##################### TEST END
-
             result_df = pd.DataFrame(columns=[
                 'parameters', 'interval', 'time', 'initial_cost', 'final_cost', 'num drivers', 'idle_time', 'tour_length', 'runtime', 'total_iterations', 'last_improvement', 'operator_performance', 'initial_tour', 'final_tour', 'run_time'])
 
-            # intervals = [15, 30, 60]
-            # interval = 15
             if test_type == 'static':
                 interval = 480
                 # interval = 15
