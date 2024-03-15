@@ -37,7 +37,6 @@ class MultipleAntColonySystem:
         # highest probability.
         self.q0 = q0
         # best path
-        # MOD: Marlene
         self.opt_time = opt_time
         if not self.opt_time:
             self.best_path_distance = None
@@ -47,30 +46,24 @@ class MultipleAntColonySystem:
         self.best_vehicle_num = None
         self.min_per_km = min_per_km
         self.whether_or_not_to_show_figure = whether_or_not_to_show_figure
-
-        # MOD: Added parameters
         self.alpha = alpha
         self.time_slice = time_slice
         self.path_handover = path_handover
         self.source = source
         self.path_map = path_map
         self.folder_name_result = folder_name_result
- 
         self.service_time_matrix = service_time_matrix
         self.order_ids = order_ids
         self.opt_time = opt_time
-        # self.time_iterations = 0
-        # self.vehicle_iterations = 0
-        # self.macs_iterations = 0
         self.result_df = result_df
         self.parameter = parameter
         self.iteration_run_time = 0
         self.exp_id = exp_id
-        # self.improvement_counter = improvement_counter
+
+        
     @staticmethod
     def stochastic_accept(index_to_visit, transition_prob):
         """
-        轮盘赌
         :param index_to_visit: a list of N index (list or tuple)
         :param transition_prob:
         :return: selected index
